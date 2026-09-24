@@ -59,9 +59,22 @@ python manage.py seed_ctms_dev
 python manage.py runserver 8001
 ```
 
-Default seeded credentials:
-- **Admin**: `admin` / `admin123`
-- **Staff**: `staff` / `staff123`
+Default seeded credentials (password for all is `staff123`):
+- **Superuser**: `admin` / `admin123`
+- **General Staff**: `staff` / `staff123`
+- **Office Dedicated Staff**:
+  - `staff_aur` → Aurora Field Office (AUR)
+  - `staff_bat` → Bataan Field Office (BAT)
+  - `staff_bul` → Bulacan Field Office (BUL)
+  - `staff_crk` → Clark Satellite Office (CRK)
+  - `staff_ro3` → DOLE Regional Office III (RO3)
+  - `staff_ne`  → Nueva Ecija Field Office (NE)
+  - `staff_pam` → Pampanga Field Office (PAM)
+  - `staff_imsd`→ Region III - IMSD (IMSD)
+  - `staff_tssd1`→ Region III - TSSD 1 (TSSD1)
+  - `staff_tssd2`→ Region III - TSSD 2 (TSSD2)
+  - `staff_tar` → Tarlac Field Office (TAR)
+  - `staff_zam` → Zambales Field Office (ZAM)
 
 ### 2. Frontend Setup
 

@@ -114,4 +114,8 @@ class Command(BaseCommand):
             tx3 = create_transaction(crk_office, services[5], client_name="Pedro Penduko", is_priority=False, source='staff')
             self.stdout.write(f"Created sample transactions for today: {tx1.queue_no}, {tx2.queue_no}, {tx3.queue_no}")
 
+        # 6. One staff account per office
+        from django.core.management import call_command
+        call_command('seed_office_staff')
+
         self.stdout.write(self.style.SUCCESS("Dev data seeding complete!"))
