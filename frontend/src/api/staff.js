@@ -1,0 +1,49 @@
+import { apiRequest } from './client';
+
+export const staffApi = {
+  login: (username, password) => apiRequest('/staff/auth/login/', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  }),
+  getMe: () => apiRequest('/staff/auth/me/'),
+
+  getQueue: (officeId, counterId) => {
+    const params = new URLSearchParams();
+    if (officeId) params.append('office', officeId);
+    if (counterId) params.append('counter', counterId);
+    return apiRequest(`/staff/queue/?${params.toString()}`);
+  },
+
+  callNext: (officeId, counterId) => apiRequest('/staff/call-next/', {
+    method: 'POST',
+    body: JSON.stringify({ office: officeId, counter: counterId }),
+  }),
+
+  createWalkin: (data) => apiRequest('/staff/transactions/walkin/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+
+  transactionAction: (id, action, payload = {}) => apiRequest(`/staff/transactions/${id}/${action}/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  }),
+
+  getTransactions: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== '' && v !== null && v !== undefined) params.append(k, v);
+    });
+    return apiRequest(`/staff/transactions/?${params.toString()}`);
+  },
+
+  getReportsSummary: (filters = {}) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== '' && v !== null && v !== undefined) params.append(k, v);
+    });
+    return apiRequest(`/staff/reports/summary/?${params.toString()}`);
+  },
+
+  getQrCodeUrl: (officeId) => `/api/staff/qr/${officeId}/`,
+};

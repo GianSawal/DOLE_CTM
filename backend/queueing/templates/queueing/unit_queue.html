@@ -1,0 +1,71 @@
+{% extends 'queueing/base.html' %}
+
+{% block title %}Unit Queue Management — {{ active_unit.name|default:"Queue" }}{% endblock %}
+{% block main_class %}main-wrapper-wide{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+        <h2>Unit Queue Board: <span style="color: var(--dole-blue);">{{ active_unit.name }}</span></h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">
+            Office: {{ active_unit.office.name }} ({{ active_unit.office.code }}) &bull; Directions: {{ active_unit.directions|default:"Not specified" }}
+        </p>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 1rem;">
+        {% if units|length > 1 %}
+        <form method="GET" action="{% url 'queueing:unit_queue' %}" style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="unit_id_select" style="font-size: 0.85rem; font-weight: 600;">Switch Unit:</label>
+            <select name="unit_id" id="unit_id_select" class="form-select" style="min-height: 40px; padding: 0.4rem 0.85rem;" onchange="this.form.submit()">
+                {% for u in units %}
+                <option value="{{ u.id }}" {% if u.id == active_unit.id %}selected{% endif %}>
+                    {{ u.office.code }} - {{ u.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+        {% endif %}
+
+        <div style="font-size: 0.825rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.4rem;" id="queue-polling-status">
+            <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
+            <span>Auto-refreshing every 5s</span>
+        </div>
+    </div>
+</div>
+
+<div id="unit-queue-board-container">
+    {% include 'queueing/unit_queue_partial.html' %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Prevent double clicking on action buttons
+function disableButton(form) {
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Processing...</span>';
+    }
+}
+
+// 5-second polling for live queue updates without page flicker
+const pollUrl = "{% url 'queueing:unit_queue_partial' %}?unit_id={{ active_unit.id }}";
+
+function refreshQueueBoard() {
+    fetch(pollUrl)
+        .then(response => {
+            if (response.ok) return response.text();
+            throw new Error('Network error');
+        })
+        .then(html => {
+            document.getElementById('unit-queue-board-container').innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Queue poll error:', err);
+        });
+}
+
+setInterval(refreshQueueBoard, 5000);
+</script>
+{% endblock %}

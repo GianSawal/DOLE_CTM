@@ -1,0 +1,90 @@
+services:
+  # -------------------------------------------------------------
+  # Frontend: React SPA + Nginx Reverse Proxy
+  # In Coolify: Point your domain (FQDN) to this service on port 80
+  # -------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - ctms-network
+
+  # -------------------------------------------------------------
+  # Backend: Django 5.2 REST API + Gunicorn + WhiteNoise
+  # Handles migrations, static assets, and queuing logic
+  # -------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    environment:
+      - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-coolify-ctms-secret-key-change-in-production}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS:-*}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS:-}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      - USE_SQLITE_DEV=${USE_SQLITE_DEV:-False}
+      # Database connection (points to 'db' service or external MySQL host)
+      - DB_NAME=${DB_NAME:-dole_csm}
+      - DB_USER=${DB_USER:-ctms}
+      - DB_PASSWORD=${DB_PASSWORD:-ctms_password_secure}
+      - DB_HOST=${DB_HOST:-db}
+      - DB_PORT=${DB_PORT:-3306}
+      # CTMS & CSM survey URLs (set to your public domain)
+      - CTMS_BASE_URL=${CTMS_BASE_URL:-http://localhost}
+      - CSM_SURVEY_BASE_URL=${CSM_SURVEY_BASE_URL:-http://localhost:5173}
+      - CSM_SURVEY_WINDOW_DAYS=${CSM_SURVEY_WINDOW_DAYS:-3}
+      # Throttling limits
+      - CHECKIN_THROTTLE_RATE=${CHECKIN_THROTTLE_RATE:-10/min}
+      - LOGIN_THROTTLE_RATE=${LOGIN_THROTTLE_RATE:-5/min}
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+    networks:
+      - ctms-network
+
+  # -------------------------------------------------------------
+  # Database: MySQL 8.0 (Optional / Self-contained)
+  # NOTE: If you are using an existing CSM MySQL database or
+  # a separate database resource in Coolify, you can comment this out
+  # and set DB_HOST to your external database host.
+  # -------------------------------------------------------------
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_password_secure}
+      MYSQL_DATABASE: ${DB_NAME:-dole_csm}
+      MYSQL_USER: ${DB_USER:-ctms}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-ctms_password_secure}
+    volumes:
+      - ctms_mysql_data:/var/lib/mysql
+    networks:
+      - ctms-network
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  ctms_mysql_data:
+
+networks:
+  ctms-network:
+    driver: bridge

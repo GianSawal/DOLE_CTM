@@ -1,0 +1,261 @@
+{% extends 'queueing/base.html' %}
+
+{% block title %}PACD Front Desk Console — DOLE Queueing{% endblock %}
+{% block main_class %}main-wrapper-wide{% endblock %}
+
+{% block content %}
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+    <div>
+        <h2>Public Assistance and Complaints Desk (PACD)</h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">
+            Issue queue tickets for walk-in clients and monitor today's office transactions.
+        </p>
+    </div>
+    <div style="background: var(--dole-blue-light); padding: 0.5rem 1rem; border-radius: var(--radius-md); border: 1px solid #c7d2fe;">
+        <span style="font-size: 0.85rem; font-weight: 700; color: var(--dole-blue); text-transform: uppercase;">
+            Active Office:
+        </span>
+        <strong style="color: var(--text-primary);">{{ active_office.name }} ({{ active_office.code }})</strong>
+    </div>
+</div>
+
+{% if newly_issued_ticket %}
+<!-- Success Modal / Banner for Newly Issued Ticket -->
+<div class="card" style="border: 2px solid var(--dole-green); background: #f0fdf4; margin-bottom: 2rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <span class="badge-status badge-done" style="margin-bottom: 0.5rem;">Ticket Successfully Issued</span>
+            <div style="display: flex; align-items: baseline; gap: 1rem;">
+                <span style="font-size: 1.1rem; font-weight: 600;">Queue Number:</span>
+                <span class="mono" style="font-size: 2.75rem; font-weight: 900; color: var(--dole-blue);">
+                    {{ newly_issued_ticket.queue_number }}
+                </span>
+                <span class="mono" style="font-size: 1rem; color: var(--text-muted);">
+                    ({{ newly_issued_ticket.transaction_number }})
+                </span>
+            </div>
+            <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                Client: <strong>{{ newly_issued_ticket.client_name|default:"Anonymous" }}</strong> &bull;
+                Verification Code: <strong class="mono" style="color: #b45309;">{{ newly_issued_ticket.verification_code }}</strong>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+            <a href="{% url 'queueing:front_desk_print' newly_issued_ticket.public_id %}" 
+               target="_blank" 
+               class="btn btn-primary" 
+               id="btn-print-slip">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                <span>Print Slip (58/80mm)</span>
+            </a>
+            <a href="{% url 'queueing:front_desk_queue' %}" class="btn btn-secondary">
+                <span>New Client</span>
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Issuance Form -->
+<div class="card">
+    <div class="card-header">
+        <h3>Issue New Queue Ticket</h3>
+    </div>
+
+    <form method="POST" action="{% url 'queueing:front_desk_queue' %}" id="front-desk-form">
+        {% csrf_token %}
+
+        <!-- Client Optional Details -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="client_name" class="form-label">Client Name (Optional)</label>
+                <input type="text" name="client_name" id="client_name" class="form-control" placeholder="e.g. Juan Dela Cruz">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="contact_number" class="form-label">Mobile Number (Optional)</label>
+                <input type="tel" name="contact_number" id="contact_number" class="form-control" placeholder="09171234567">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label for="email" class="form-label">Email (Optional)</label>
+                <input type="email" name="email" id="email" class="form-control" placeholder="client@example.com">
+            </div>
+
+            <div style="display: flex; align-items: center; padding-top: 1.8rem;">
+                <label class="checkbox-label" for="is_anonymous">
+                    <input type="checkbox" name="is_anonymous" id="is_anonymous" class="checkbox-input">
+                    <span>Stay Anonymous</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Services Selection -->
+        <div style="margin-bottom: 1rem;">
+            <label class="form-label" style="font-size: 1rem;">
+                Select Service(s) for this Client:
+            </label>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            {% for u in available_units %}
+            <div class="services-unit-group">
+                <div class="unit-group-title">
+                    <span>{{ u.name }}</span>
+                    {% if u.directions %}
+                    <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">
+                        (📍 {{ u.directions }})
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="service-card-grid">
+                    {% for s in u.services.all %}
+                        {% if s.is_active %}
+                        <div class="service-card" onclick="toggleCardSelection(this)">
+                            <input type="checkbox" 
+                                   name="service_ids" 
+                                   value="{{ s.id }}" 
+                                   class="service-card-input"
+                                   onclick="event.stopPropagation(); updateCardState(this.parentElement, this.checked);">
+                            <div class="service-card-title">{{ s.name }}</div>
+                            <div class="service-card-meta">
+                                <span class="badge-pct">≈ {{ s.pct_minutes }} min</span>
+                                <span class="badge-class">{{ s.get_classification_display }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% empty %}
+            <p style="color: var(--text-muted);">No active services found for this office.</p>
+            {% endfor %}
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+            <button type="reset" class="btn btn-secondary">Reset Form</button>
+            <button type="submit" class="btn btn-primary" id="btn-issue-ticket">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Issue &amp; Generate Ticket</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Today's Tickets Table -->
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h3>Today's Tickets ({{ today_tickets|length }})</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">Issued today for {{ active_office.name }}</p>
+        </div>
+    </div>
+
+    <div class="data-table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Queue #</th>
+                    <th>Transaction No.</th>
+                    <th>Time</th>
+                    <th>Client</th>
+                    <th>Source</th>
+                    <th>Services &amp; Status per Unit</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in today_tickets %}
+                <tr>
+                    <td class="mono" style="font-size: 1.25rem; font-weight: 800; color: var(--dole-blue);">
+                        {{ t.queue_number }}
+                    </td>
+                    <td class="mono">{{ t.transaction_number }}</td>
+                    <td>{{ t.created_at|date:"h:i A" }}</td>
+                    <td>
+                        {% if t.is_anonymous %}
+                            <span style="color: var(--text-muted); font-style: italic;">Anonymous</span>
+                        {% else %}
+                            {{ t.client_name|default:"Walk-in Client" }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--text-muted);">
+                            {{ t.get_source_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+                            {% for item in t.items.all %}
+                            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem;">
+                                <strong>{{ item.unit.name }}:</strong>
+                                <span>{{ item.service.name }}</span>
+                                <span class="badge-status badge-{{ item.status|lower }}" style="font-size: 0.7rem; padding: 0.15rem 0.45rem;">
+                                    {{ item.get_status_display }}
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <a href="{% url 'queueing:front_desk_print' t.public_id %}" target="_blank" class="btn btn-secondary btn-sm" title="Print Slip">
+                                🖨️ Print
+                            </a>
+                            <a href="{% url 'queueing:client_ticket' t.office.slug t.public_id %}" target="_blank" class="btn btn-secondary btn-sm" title="View Live Page">
+                                👁️ View
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No tickets issued yet today.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateCardState(card, isChecked) {
+    if (isChecked) {
+        card.classList.add('selected');
+    } else {
+        card.classList.remove('selected');
+    }
+}
+
+function toggleCardSelection(card) {
+    const input = card.querySelector('input[type="checkbox"]');
+    input.checked = !input.checked;
+    updateCardState(card, input.checked);
+}
+
+const anonCheckbox = document.getElementById('is_anonymous');
+const nameInput = document.getElementById('client_name');
+const contactInput = document.getElementById('contact_number');
+const emailInput = document.getElementById('email');
+
+anonCheckbox.addEventListener('change', function() {
+    const disabled = this.checked;
+    [nameInput, contactInput, emailInput].forEach(field => {
+        field.disabled = disabled;
+        if (disabled) field.value = '';
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'queueing/base.html' %}
+
+{% block title %}Welcome to DOLE Region III — Client Queueing{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 640px; margin: 3rem auto; text-align: center; padding: 3rem 2rem;">
+    <div style="width: 80px; height: 80px; margin: 0 auto 1.5rem; background: var(--dole-blue-light); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center;">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--dole-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7"></rect>
+            <rect x="14" y="3" width="7" height="7"></rect>
+            <rect x="14" y="14" width="7" height="7"></rect>
+            <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+    </div>
+
+    <h2 style="color: var(--dole-blue); margin-bottom: 0.75rem;">DOLE Region III Client Queueing</h2>
+
+    <p style="font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem;">
+        Please scan the QR code posted at the office.
+    </p>
+
+    <p style="font-size: 0.95rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 2rem;">
+        Each Regional, Provincial, and Satellite office has its own official check-in QR code mounted at the building entrance and PACD / front desk. Simply point your smartphone camera at the poster to choose your services and get your queue number.
+    </p>
+
+    <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1.25rem; font-size: 0.9rem; color: var(--text-secondary); text-align: left;">
+        <strong>Need assistance?</strong><br>
+        If you do not have a smartphone or have trouble scanning, please approach our PACD / Front Desk staff who will gladly print your queue ticket for you.
+    </div>
+</div>
+{% endblock %}

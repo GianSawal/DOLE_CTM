@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DOLE Regional Office III — Client Queueing System{% endblock %}</title>
+    <meta name="description" content="DOLE Regional Office III Client Queueing and Transaction Monitoring System. Citizen's Charter compliant.">
+    <link rel="stylesheet" href="{% static 'queueing/css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="dole-tricolor-bar"></div>
+
+    <header class="header-navbar">
+        <a href="{% if office %}{% url 'queueing:start' office.slug %}{% else %}{% url 'queueing:root' %}{% endif %}" class="brand-container" id="brand-home-link">
+            <img src="{% static 'queueing/img/dolelogo.png' %}" alt="DOLE Logo" class="brand-logo">
+            <div class="brand-text">
+                <span class="brand-title">DOLE Region III</span>
+                <span class="brand-subtitle">Client Queueing System</span>
+            </div>
+        </a>
+
+        <nav class="nav-links">
+            <a href="{% if office %}{% url 'queueing:start' office.slug %}{% else %}{% url 'queueing:root' %}{% endif %}" class="nav-item {% if request.resolver_match.url_name == 'start' or request.resolver_match.url_name == 'client_step1' or request.resolver_match.url_name == 'client_step2' %}active{% endif %}">
+                Get Ticket
+            </a>
+            {% if user.is_authenticated %}
+                {% if perms.queueing.add_queueticket %}
+                <a href="{% url 'queueing:front_desk_queue' %}" class="nav-item {% if request.resolver_match.url_name == 'front_desk_queue' %}active{% endif %}">
+                    Front Desk (PACD)
+                </a>
+                {% endif %}
+                {% if perms.queueing.change_ticketitem %}
+                <a href="{% url 'queueing:unit_queue' %}" class="nav-item {% if request.resolver_match.url_name == 'unit_queue' %}active{% endif %}">
+                    Unit Queue
+                </a>
+                {% endif %}
+                <a href="{% url 'queueing:pct_report' %}" class="nav-item {% if request.resolver_match.url_name == 'pct_report' %}active{% endif %}">
+                    PCT Report
+                </a>
+                {% if user.is_staff %}
+                <a href="/django-admin/" class="nav-item" target="_blank">
+                    Admin
+                </a>
+                {% endif %}
+            {% else %}
+                <a href="/django-admin/login/?next={{ request.path }}" class="nav-item">
+                    Staff Login
+                </a>
+            {% endif %}
+        </nav>
+    </header>
+
+    <main class="main-wrapper {% block main_class %}{% endblock %}">
+        {% if messages %}
+        <div class="alert-messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>Department of Labor and Employment — Regional Office III (Central Luzon)</p>
+        <p style="margin-top: 0.25rem; font-size: 0.75rem;">
+            Republic Act No. 11032 (Ease of Doing Business) &amp; Republic Act No. 10173 (Data Privacy Act of 2012)
+        </p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

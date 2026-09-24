@@ -1,0 +1,282 @@
+:root {
+  /* Official DOLE Palette extracted from dolelogo.png */
+  --dole-blue: #0305ba;
+  --dole-blue-hover: #02048e;
+  --dole-blue-light: #eef1ff;
+  --dole-blue-subtle: #f6f8ff;
+  
+  --dole-red: #ff0103;
+  --dole-red-dark: #cc0002;
+  --dole-red-light: #fff0f0;
+  
+  --dole-gold: #ffc603;
+  --dole-gold-dark: #b38600;
+  --dole-gold-light: #fffdeb;
+  
+  --dole-green: #059669;
+  --dole-green-light: #ecfdf5;
+
+  /* Surfaces & Neutrals */
+  --bg-ground: #f4f5f9;
+  --bg-card: #ffffff;
+  --border-color: #e2e8f0;
+  --border-hairline: 1px solid #e2e8f0;
+
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-inverse: #ffffff;
+
+  --font-ui: 'Public Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: 'Archivo', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', "SFMono-Regular", Consolas, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px 0 rgba(3, 5, 186, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(3, 5, 186, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 20px -3px rgba(3, 5, 186, 0.12), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  background-color: var(--bg-ground);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Philippine / DOLE Tricolor Top Accent Strip */
+.dole-tricolor-bar {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--dole-blue) 0%, var(--dole-blue) 50%, var(--dole-gold) 50%, var(--dole-gold) 55%, var(--dole-red) 55%, var(--dole-red) 100%);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Logos */
+.dole-logo-img {
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+/* Buttons & Interactive Elements */
+button, .btn {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  min-height: 48px;
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
+}
+
+.btn-primary {
+  background-color: var(--dole-blue);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(3, 5, 186, 0.25);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--dole-blue-hover);
+  box-shadow: 0 4px 8px rgba(3, 5, 186, 0.35);
+}
+
+.btn-gold {
+  background-color: var(--dole-gold);
+  color: #1e1e1e;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(255, 198, 3, 0.3);
+}
+
+.btn-gold:hover:not(:disabled) {
+  background-color: #f0b800;
+  box-shadow: 0 4px 10px rgba(255, 198, 3, 0.4);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.btn-outline:hover:not(:disabled) {
+  background-color: #ffffff;
+  border-color: var(--dole-blue);
+  color: var(--dole-blue);
+}
+
+.btn-danger {
+  background-color: var(--dole-red-light);
+  color: var(--dole-red);
+  border: 1px solid #ffccd0;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--dole-red);
+  color: #ffffff;
+}
+
+.btn-success {
+  background-color: var(--dole-green-light);
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: var(--dole-green);
+  color: #ffffff;
+}
+
+.btn-sm {
+  min-height: 36px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.btn-lg {
+  min-height: 56px;
+  padding: 1rem 1.75rem;
+  font-size: 1.125rem;
+}
+
+button:disabled, .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: var(--border-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+}
+
+/* Form Inputs */
+input, select, textarea {
+  width: 100%;
+  min-height: 52px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  font-family: var(--font-ui);
+  border: var(--border-hairline);
+  border-radius: var(--radius-md);
+  background-color: #ffffff;
+  color: var(--text-primary);
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--dole-blue);
+  box-shadow: 0 0 0 3px rgba(3, 5, 186, 0.12);
+}
+
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.375rem;
+}
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--radius-full);
+}
+
+.badge-waiting {
+  background-color: #f1f5f9;
+  color: #475569;
+}
+
+.badge-serving {
+  background-color: var(--dole-blue-light);
+  color: var(--dole-blue);
+}
+
+.badge-done {
+  background-color: var(--dole-green-light);
+  color: #047857;
+}
+
+.badge-priority {
+  background-color: var(--dole-gold-light);
+  color: var(--dole-gold-dark);
+  border: 1px solid #fde68a;
+}
+
+.badge-cancelled, .badge-no_show {
+  background-color: var(--dole-red-light);
+  color: var(--dole-red);
+}
+
+/* Layout Utilities */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
+.gap-6 { gap: 1.5rem; }
+.w-full { width: 100%; }
+.mt-4 { margin-top: 1rem; }
+.mt-6 { margin-top: 1.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+
+/* Thermal Slip Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-slip-area, .print-slip-area * {
+    visibility: visible;
+  }
+  .print-slip-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 10px;
+    font-size: 12px;
+  }
+}

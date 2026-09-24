@@ -1,0 +1,148 @@
+{% extends 'queueing/base.html' %}
+
+{% block title %}Step 2: Your Details — {{ office.name }} — DOLE Queueing{% endblock %}
+
+{% block content %}
+<div class="wizard-stepper">
+    <div class="wizard-step completed">
+        <div class="step-circle">✓</div>
+        <span class="step-label">Services Chosen</span>
+    </div>
+    <div class="step-divider"></div>
+    <div class="wizard-step active">
+        <div class="step-circle">2</div>
+        <span class="step-label">Your Details</span>
+    </div>
+</div>
+
+<div class="card" style="max-width: 640px; margin: 0 auto 2rem auto;">
+    <div class="card-header">
+        <div>
+            <h2>Your Details (Optional)</h2>
+            <div style="font-size: 0.95rem; font-weight: 700; color: var(--dole-blue); margin-top: 0.2rem;">
+                📍 {{ office.name }}
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.25rem;">
+                Providing your details helps our staff call your name. You may also proceed anonymously.
+            </p>
+        </div>
+    </div>
+
+    <!-- Summary of selections -->
+    <div style="background: var(--dole-blue-subtle); border: 1px solid #c7d2fe; border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--dole-blue); text-transform: uppercase;">
+            Availing at: {{ office.name }} ({{ office.code }})
+        </div>
+        <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+            <strong>Services:</strong>
+            <ul style="margin: 0.25rem 0 0 1.25rem;">
+                {% for s in services %}
+                <li>{{ s.name }} <span style="color: var(--text-muted); font-size: 0.8rem;">({{ s.unit.name }} &bull; ≈ {{ s.pct_minutes }} min)</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <form method="POST" action="{% url 'queueing:client_submit' office.slug %}" id="details-form">
+        {% csrf_token %}
+
+        <!-- Anonymous Toggle -->
+        <div class="form-group" style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 1.5rem;">
+            <label class="checkbox-label" for="chk-anonymous">
+                <input type="checkbox" name="is_anonymous" id="chk-anonymous" class="checkbox-input">
+                <span>I prefer to stay anonymous</span>
+            </label>
+            <p style="font-size: 0.825rem; color: var(--text-muted); margin-top: 0.35rem; margin-left: 2rem;">
+                Your ticket will not display any name. You will be called by your queue number only.
+            </p>
+        </div>
+
+        <div id="personal-fields-group">
+            <div class="form-group">
+                <label for="id_client_name" class="form-label">Full Name (Optional)</label>
+                <input type="text" name="client_name" id="id_client_name" class="form-control" placeholder="e.g. Juan Dela Cruz">
+            </div>
+
+            <div class="form-group">
+                <label for="id_contact_number" class="form-label">Philippine Mobile Number (Optional)</label>
+                <input type="tel" name="contact_number" id="id_contact_number" class="form-control" placeholder="e.g. 09171234567">
+                <small style="color: var(--text-muted); font-size: 0.8rem;">Used if staff need to text or contact you regarding your queue status.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="id_email" class="form-label">Email Address (Optional)</label>
+                <input type="email" name="email" id="id_email" class="form-control" placeholder="e.g. juan@example.com">
+            </div>
+        </div>
+
+        <!-- Data Privacy Notice -->
+        <div style="background: #fdf8e6; border-left: 4px solid var(--dole-gold); padding: 0.85rem 1rem; border-radius: var(--radius-sm); margin: 1.5rem 0; font-size: 0.825rem; color: #78350f;">
+            <strong>Data Privacy Notice (Republic Act No. 10173):</strong>
+            DOLE Regional Office III respects your privacy. Any personal information you provide is collected solely for queue management, transaction processing, and service verification. Your information will not be shared with unauthorized third parties.
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 2rem;">
+            <a href="{% url 'queueing:start' office.slug %}" class="btn btn-secondary" id="btn-back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                <span>Back to Services</span>
+            </a>
+
+            <button type="submit" class="btn btn-primary" id="btn-submit-ticket">
+                <span id="btn-text">Get Queue Ticket</span>
+                <span id="btn-spinner" style="display: none;">
+                    <svg style="animation: spin 1s linear infinite;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="1"></path>
+                    </svg>
+                    <span>Issuing ticket...</span>
+                </span>
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+@keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
+<script>
+const chkAnonymous = document.getElementById('chk-anonymous');
+const clientName = document.getElementById('id_client_name');
+const contactNumber = document.getElementById('id_contact_number');
+const email = document.getElementById('id_email');
+const detailsForm = document.getElementById('details-form');
+const btnSubmit = document.getElementById('btn-submit-ticket');
+const btnText = document.getElementById('btn-text');
+const btnSpinner = document.getElementById('btn-spinner');
+
+chkAnonymous.addEventListener('change', function() {
+    const disabled = this.checked;
+    [clientName, contactNumber, email].forEach(field => {
+        field.disabled = disabled;
+        if (disabled) field.value = '';
+    });
+});
+
+detailsForm.addEventListener('submit', function(e) {
+    if (!chkAnonymous.checked && contactNumber.value.trim() !== '') {
+        const cleaned = contactNumber.value.trim().replace(/[\s-]/g, '');
+        const phMobileRegex = /^(09\d{9}|\+639\d{9})$/;
+        if (!phMobileRegex.test(cleaned)) {
+            e.preventDefault();
+            alert('Please enter a valid Philippine mobile number (e.g. 09171234567 or +639171234567).');
+            contactNumber.focus();
+            return;
+        }
+    }
+
+    // Prevent double submission
+    btnSubmit.disabled = true;
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline-flex';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,151 @@
+{% extends 'queueing/base.html' %}
+
+{% block title %}Ticket #{{ ticket.queue_number }} — DOLE Regional Office III{% endblock %}
+
+{% block content %}
+<div style="max-width: 680px; margin: 0 auto 2rem auto;">
+
+    <!-- Screenshot Reminder Banner -->
+    <div style="background: #eef2ff; border: 1px solid #c7d2fe; border-radius: var(--radius-md); padding: 0.85rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--dole-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+        </svg>
+        <span style="font-size: 0.9rem; font-weight: 600; color: #1e40af;">
+            📱 <strong>Tip:</strong> Take a screenshot of this page or keep this tab open. This is your official queue ticket.
+        </span>
+    </div>
+
+    <!-- Ticket Hero Header -->
+    <div class="ticket-hero">
+        <div class="ticket-office-tag">{{ ticket.office.name }}</div>
+        <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-muted);">YOUR QUEUE NUMBER</div>
+        <div class="ticket-big-number">{{ ticket.queue_number }}</div>
+
+        {% if not ticket.is_anonymous and ticket.client_name %}
+        <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">
+            {{ ticket.client_name }}
+        </div>
+        {% endif %}
+
+        <div class="ticket-meta-pills">
+            <span class="meta-pill">
+                Tx: <strong>{{ ticket.transaction_number }}</strong>
+            </span>
+            <span class="meta-pill">
+                Date: <strong>{{ ticket.service_date|date:"F d, Y" }}</strong>
+            </span>
+            <span class="meta-pill meta-pill-verif">
+                CSM Verification Code: <strong>{{ ticket.verification_code }}</strong>
+            </span>
+        </div>
+
+        <div style="margin-top: 1rem;">
+            <span style="font-size: 0.85rem; color: var(--text-muted);">
+                Estimated Total Time: <strong>≈ {{ ticket.total_target_pct }} minutes</strong>
+            </span>
+        </div>
+    </div>
+
+    <!-- Proceed To Section -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Proceed to the following Unit(s):</h3>
+            <span style="font-size: 0.85rem; color: var(--text-muted);" id="poll-indicator">
+                🟢 Live &bull; auto-refreshes
+            </span>
+        </div>
+
+        <div id="units-status-container">
+            {% for unit_name, group in items_by_unit.items %}
+            <div class="proceed-unit-card" data-unit="{{ unit_name }}">
+                <div class="proceed-unit-header">
+                    <div>
+                        <div class="proceed-unit-name">{{ unit_name }}</div>
+                        <div class="proceed-directions">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                                <circle cx="12" cy="10" r="3"></circle>
+                            </svg>
+                            <span>{{ group.directions|default:"Please inquire at the front desk" }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <ul class="proceed-services-list">
+                    {% for item in group.items %}
+                    <li class="proceed-service-item" id="item-row-{{ item.id }}">
+                        <div>
+                            <span style="font-weight: 600;">{{ item.service.name }}</span>
+                            <span style="color: var(--text-muted); font-size: 0.8rem; margin-left: 0.5rem;">
+                                (≈ {{ item.pct_minutes_snapshot }} min)
+                            </span>
+                        </div>
+                        <div>
+                            <span class="badge-status badge-{{ item.status|lower }}" id="badge-item-{{ item.id }}">
+                                {{ item.get_status_display }}
+                            </span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Client Satisfaction Measurement (CSM) QR Card -->
+    <div class="csm-qr-card">
+        <h3 style="color: var(--dole-blue); margin-bottom: 0.5rem;">Client Satisfaction Measurement (CSM)</h3>
+        <p style="font-size: 0.875rem; color: var(--text-secondary); max-width: 480px; margin: 0 auto 1.25rem auto;">
+            After your service is completed, scan this QR code at the CSM feedback station (or using your phone camera) to rate our service.
+        </p>
+
+        <img src="{{ qr_data_uri }}" alt="CSM Survey QR Code" class="csm-qr-img">
+
+        <div style="font-size: 0.875rem; color: var(--text-muted);">
+            Manual kiosk fallback:<br>
+            Transaction No: <strong class="mono" style="color: var(--text-primary);">{{ ticket.transaction_number }}</strong> &bull; 
+            Verification Code: <strong class="mono" style="color: #b45309; font-size: 1rem;">{{ ticket.verification_code }}</strong>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Auto-refresh client ticket item status every 10 seconds via polling
+const statusUrl = "{% url 'queueing:client_ticket_status' office.slug ticket.public_id %}";
+
+function pollTicketStatus() {
+    fetch(statusUrl)
+        .then(response => response.json())
+        .then(data => {
+            if (data.items) {
+                data.items.forEach(itemData => {
+                    const cards = document.querySelectorAll('.proceed-unit-card');
+                    cards.forEach(card => {
+                        if (card.dataset.unit === itemData.unit_name) {
+                            const listItems = card.querySelectorAll('.proceed-service-item');
+                            listItems.forEach(li => {
+                                if (li.textContent.includes(itemData.service_name)) {
+                                    const badge = li.querySelector('.badge-status');
+                                    if (badge) {
+                                        badge.className = 'badge-status badge-' + itemData.status.toLowerCase();
+                                        badge.textContent = itemData.status_display;
+                                    }
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+        })
+        .catch(err => console.error("Error polling ticket status:", err));
+}
+
+setInterval(pollTicketStatus, 10000);
+</script>
+{% endblock %}

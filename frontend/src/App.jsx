@@ -1,0 +1,87 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+// Public pages
+import CheckIn from './pages/public/CheckIn';
+import Ticket from './pages/public/Ticket';
+import DisplayBoard from './pages/public/DisplayBoard';
+
+// Staff pages
+import StaffLogin from './pages/staff/StaffLogin';
+import StaffQueue from './pages/staff/StaffQueue';
+import StaffTransactions from './pages/staff/StaffTransactions';
+import StaffReports from './pages/staff/StaffReports';
+import StaffQr from './pages/staff/StaffQr';
+
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--text-muted)' }}>Verifying credentials...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/staff/login" replace />;
+  }
+
+  return children;
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/checkin/office/:officeId" element={<CheckIn />} />
+          <Route path="/t/:ticketToken" element={<Ticket />} />
+          <Route path="/display/office/:officeId" element={<DisplayBoard />} />
+
+          {/* Staff Auth & Protected Routes */}
+          <Route path="/staff/login" element={<StaffLogin />} />
+          <Route
+            path="/staff/queue"
+            element={
+              <ProtectedRoute>
+                <StaffQueue />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/transactions"
+            element={
+              <ProtectedRoute>
+                <StaffTransactions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/reports"
+            element={
+              <ProtectedRoute>
+                <StaffReports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/qr"
+            element={
+              <ProtectedRoute>
+                <StaffQr />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Default Root Route */}
+          <Route path="/" element={<Navigate to="/staff/queue" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}

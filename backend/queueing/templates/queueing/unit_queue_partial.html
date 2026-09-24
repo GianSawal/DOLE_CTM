@@ -1,0 +1,282 @@
+<!-- Unit Queue Partial for 5-second polling -->
+
+<div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
+
+    <!-- SECTION 1: NOW SERVING -->
+    <div class="card" style="border-top: 4px solid var(--dole-green);">
+        <div class="card-header">
+            <div>
+                <h3 style="display: flex; align-items: center; gap: 0.5rem; color: #065f46;">
+                    <span>🟢 Now Serving</span>
+                    <span class="badge-status badge-serving" style="font-size: 0.75rem;">
+                        {{ serving_items|length }} Active
+                    </span>
+                </h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Clients currently at your counter</p>
+            </div>
+        </div>
+
+        {% if serving_items %}
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                {% for item in serving_items %}
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-md); padding: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <div style="display: flex; align-items: baseline; gap: 0.75rem;">
+                            <span class="mono" style="font-size: 2.25rem; font-weight: 800; color: var(--dole-blue);">
+                                {{ item.ticket.queue_number }}
+                            </span>
+                            <span style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);">
+                                {{ item.ticket.client_name|default:"Anonymous" }}
+                            </span>
+                            <span class="mono" style="font-size: 0.85rem; color: var(--text-muted);">
+                                ({{ item.ticket.transaction_number }})
+                            </span>
+                        </div>
+
+                        <div style="font-weight: 600; font-size: 1rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                            Service: <strong>{{ item.service.name }}</strong>
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; font-size: 0.875rem;">
+                            <span>Started: <strong>{{ item.started_at|date:"h:i A" }}</strong></span>
+                            <span>&bull;</span>
+                            <span>Elapsed: <strong>{{ item.elapsed_minutes }} min</strong></span>
+                            <span>&bull;</span>
+                            <span>Target: <strong>{{ item.pct_minutes_snapshot }} min</strong></span>
+                            <span class="{{ item.pct_status_class }}">
+                                {% if item.is_over_pct %}
+                                    ⚠️ Over Target
+                                {% elif item.pct_status_class == 'pct-warning' %}
+                                    ⚡ Near Target
+                                {% else %}
+                                    ✓ On Target
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem;">
+                        <form method="POST" action="{% url 'queueing:unit_action' item.id 'done' %}" onsubmit="disableButton(this)">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success" style="min-height: 44px; padding: 0.5rem 1.25rem;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <span>Mark Done</span>
+                            </button>
+                        </form>
+
+                        <form method="POST" action="{% url 'queueing:unit_action' item.id 'skip' %}" onsubmit="disableButton(this)">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-secondary btn-sm" style="min-height: 44px; color: var(--dole-red);" onclick="return confirm('Skip this client?');">
+                                <span>Skip</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="text-align: center; color: var(--text-muted); padding: 1.5rem 0;">
+                No clients currently being served. Call the next client from the waiting queue below.
+            </p>
+        {% endif %}
+    </div>
+
+    <!-- SECTION 2: CALLED (WAITING TO STEP FORWARD) -->
+    {% if called_items %}
+    <div class="card" style="border-top: 4px solid var(--dole-gold);">
+        <div class="card-header">
+            <h3 style="color: #92400e;">📢 Called (Awaiting Client)</h3>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            {% for item in called_items %}
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--radius-md); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <span class="mono" style="font-size: 1.75rem; font-weight: 800; color: var(--dole-blue);">
+                        {{ item.ticket.queue_number }}
+                    </span>
+                    <span style="font-weight: 700; margin-left: 0.5rem;">{{ item.ticket.client_name|default:"Anonymous" }}</span>
+                    <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                        {{ item.service.name }} &bull; Called at {{ item.called_at|date:"h:i A" }}
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem;">
+                    <form method="POST" action="{% url 'queueing:unit_action' item.id 'start' %}" onsubmit="disableButton(this)">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary" style="min-height: 40px; padding: 0.4rem 1rem;">
+                            <span>Start Serving</span>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{% url 'queueing:unit_action' item.id 'requeue' %}" onsubmit="disableButton(this)">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary btn-sm" style="min-height: 40px;">
+                            <span>Requeue (Wait)</span>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{% url 'queueing:unit_action' item.id 'skip' %}" onsubmit="disableButton(this)">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary btn-sm" style="min-height: 40px; color: var(--dole-red);" onclick="return confirm('Skip this ticket?');">
+                            <span>Skip</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- SECTION 3: WAITING QUEUE (FIFO) -->
+    <div class="card" style="border-top: 4px solid var(--dole-blue);">
+        <div class="card-header">
+            <div>
+                <h3>⏳ Waiting Queue (FIFO)</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">Clients waiting in order of arrival</p>
+            </div>
+            <span class="badge-status badge-waiting">
+                {{ waiting_items|length }} in queue
+            </span>
+        </div>
+
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Queue #</th>
+                        <th>Client</th>
+                        <th>Service</th>
+                        <th>Arrival</th>
+                        <th>Target PCT</th>
+                        <th>Status / Availability</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in waiting_items %}
+                    <tr>
+                        <td class="mono" style="font-size: 1.4rem; font-weight: 800; color: var(--dole-blue);">
+                            {{ item.ticket.queue_number }}
+                        </td>
+                        <td>
+                            <strong>{{ item.ticket.client_name|default:"Anonymous" }}</strong>
+                        </td>
+                        <td>{{ item.service.name }}</td>
+                        <td>{{ item.ticket.created_at|date:"h:i A" }}</td>
+                        <td>≈ {{ item.pct_minutes_snapshot }} min</td>
+                        <td>
+                            {% if item.busy_at_other_unit %}
+                                <span class="badge-status" style="background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5;">
+                                    ⚠️ Being served at {{ item.busy_at_other_unit }}
+                                </span>
+                            {% else %}
+                                <span class="badge-status badge-waiting">Ready to Call</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                {% if item.busy_at_other_unit %}
+                                    <button class="btn btn-primary btn-sm" disabled title="Client is currently at another unit">
+                                        Call
+                                    </button>
+                                {% else %}
+                                    <form method="POST" action="{% url 'queueing:unit_action' item.id 'call' %}" onsubmit="disableButton(this)">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-primary btn-sm">
+                                            <span>Call</span>
+                                        </button>
+                                    </form>
+                                {% endif %}
+
+                                <form method="POST" action="{% url 'queueing:unit_action' item.id 'skip' %}" onsubmit="disableButton(this)">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--dole-red);" onclick="return confirm('Skip this ticket?');">
+                                        Skip
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                            No clients currently waiting for this unit.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SECTION 4: DONE / SKIPPED TODAY -->
+    <div class="card">
+        <div class="card-header">
+            <h3>Completed / Skipped Today ({{ completed_items|length }})</h3>
+        </div>
+
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Queue #</th>
+                        <th>Client</th>
+                        <th>Service</th>
+                        <th>Result</th>
+                        <th>Served By</th>
+                        <th>Actual PCT</th>
+                        <th>Survey Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in completed_items %}
+                    <tr>
+                        <td class="mono" style="font-weight: 700;">{{ item.ticket.queue_number }}</td>
+                        <td>{{ item.ticket.client_name|default:"Anonymous" }}</td>
+                        <td>{{ item.service.name }}</td>
+                        <td>
+                            <span class="badge-status badge-{{ item.status|lower }}">
+                                {{ item.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ item.served_by.username|default:"—" }}</td>
+                        <td>
+                            {% if item.status == 'DONE' and item.actual_pct_minutes %}
+                                <span class="{{ item.pct_status_class }}">
+                                    {{ item.actual_pct_minutes }} min
+                                </span>
+                                <span style="font-size: 0.75rem; color: var(--text-muted);">
+                                    (target: {{ item.pct_minutes_snapshot }}m)
+                                </span>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.survey_submitted_at %}
+                                <span class="badge-status badge-surveyed" title="Surveyed at {{ item.survey_submitted_at|date:'h:i A' }}">
+                                    ✓ Surveyed
+                                </span>
+                            {% elif item.status == 'DONE' %}
+                                <span style="font-size: 0.8rem; color: var(--text-muted);">Eligible for CSM</span>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">
+                            No items completed or skipped yet today.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>

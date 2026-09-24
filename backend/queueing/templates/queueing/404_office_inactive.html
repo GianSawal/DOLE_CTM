@@ -1,0 +1,29 @@
+{% extends 'queueing/base.html' %}
+
+{% block title %}Office Link Inactive — DOLE Queueing{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 3rem auto; text-align: center; padding: 2.5rem 1.5rem;">
+    <div style="width: 64px; height: 64px; margin: 0 auto 1.25rem; background: var(--dole-gold-light); border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center;">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+    </div>
+
+    <h2 style="color: var(--text-primary); margin-bottom: 0.75rem;">Link Not Found or Inactive</h2>
+
+    <p style="font-size: 1.05rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 1.5rem;">
+        This link is no longer active, please ask the PACD / front desk.
+    </p>
+
+    <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 1rem; font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+        If you are visiting a DOLE Field Office, please scan the QR code posted at the entrance or approach the Public Assistance and Complaints Desk (PACD).
+    </div>
+
+    <a href="{% url 'queueing:root' %}" class="btn btn-secondary">
+        Return to Home
+    </a>
+</div>
+{% endblock %}

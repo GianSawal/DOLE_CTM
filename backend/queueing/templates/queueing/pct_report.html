@@ -1,0 +1,173 @@
+{% extends 'queueing/base.html' %}
+
+{% block title %}Processing Cycle Time (PCT) Compliance Report — DOLE Queueing{% endblock %}
+{% block main_class %}main-wrapper-wide{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 1.5rem;">
+    <h2>Processing Cycle Time (PCT) Compliance Report</h2>
+    <p style="color: var(--text-muted); font-size: 0.95rem;">
+        Performance monitoring against Citizen's Charter standards under Republic Act No. 11032.
+    </p>
+</div>
+
+<!-- Filters Card -->
+<div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+    <form method="GET" action="{% url 'queueing:pct_report' %}" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end;">
+        <div>
+            <label for="start_date" class="form-label" style="font-size: 0.85rem;">From Date:</label>
+            <input type="date" name="start_date" id="start_date" value="{{ start_date }}" class="form-control" style="min-height: 40px; padding: 0.4rem 0.85rem;">
+        </div>
+
+        <div>
+            <label for="end_date" class="form-label" style="font-size: 0.85rem;">To Date:</label>
+            <input type="date" name="end_date" id="end_date" value="{{ end_date }}" class="form-control" style="min-height: 40px; padding: 0.4rem 0.85rem;">
+        </div>
+
+        <div>
+            <label for="office_id" class="form-label" style="font-size: 0.85rem;">Office:</label>
+            <select name="office_id" id="office_id" class="form-select" style="min-height: 40px; padding: 0.4rem 0.85rem;">
+                <option value="">All Offices</option>
+                {% for o in offices %}
+                <option value="{{ o.id }}" {% if o.id == selected_office_id %}selected{% endif %}>
+                    {{ o.name }} ({{ o.code }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="unit_id" class="form-label" style="font-size: 0.85rem;">Unit:</label>
+            <select name="unit_id" id="unit_id" class="form-select" style="min-height: 40px; padding: 0.4rem 0.85rem;">
+                <option value="">All Units</option>
+                {% for u in units %}
+                <option value="{{ u.id }}" {% if u.id == selected_unit_id %}selected{% endif %}>
+                    {{ u.office.code }} - {{ u.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <button type="submit" class="btn btn-primary btn-sm" style="min-height: 40px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <span>Filter Report</span>
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- KPI Summary Metrics -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="padding: 1.25rem; margin-bottom: 0;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+            Total Tickets Served
+        </div>
+        <div class="mono" style="font-size: 2.25rem; font-weight: 800; color: var(--dole-blue); margin-top: 0.25rem;">
+            {{ total_served }}
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">Completed services</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem; margin-bottom: 0;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+            Overall Target Compliance
+        </div>
+        <div class="mono" style="font-size: 2.25rem; font-weight: 800; color: {% if overall_compliance >= 80 %}var(--dole-green){% else %}var(--dole-red){% endif %}; margin-top: 0.25rem;">
+            {{ overall_compliance }}%
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">Served within Citizen's Charter PCT</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem; margin-bottom: 0;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+            Avg Wait Time
+        </div>
+        <div class="mono" style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin-top: 0.25rem;">
+            {{ overall_avg_wait }} <span style="font-size: 1rem; font-weight: normal;">min</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">From arrival to service call</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem; margin-bottom: 0;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+            Avg Actual PCT
+        </div>
+        <div class="mono" style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin-top: 0.25rem;">
+            {{ overall_avg_actual }} <span style="font-size: 1rem; font-weight: normal;">min</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">Counter service duration</div>
+    </div>
+
+    <div class="card" style="padding: 1.25rem; margin-bottom: 0;">
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+            Skipped Count
+        </div>
+        <div class="mono" style="font-size: 2.25rem; font-weight: 800; color: var(--text-muted); margin-top: 0.25rem;">
+            {{ total_skipped }}
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-muted);">No-show / canceled tickets</div>
+    </div>
+</div>
+
+<!-- Detailed Table per Service -->
+<div class="card">
+    <div class="card-header">
+        <h3>Service Performance Breakdown</h3>
+    </div>
+
+    <div class="data-table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Service Name</th>
+                    <th>Unit / Division</th>
+                    <th>Target PCT</th>
+                    <th>Tickets Served</th>
+                    <th>Avg Wait Time</th>
+                    <th>Avg Actual PCT</th>
+                    <th>Within Target %</th>
+                    <th>Skipped</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in report_rows %}
+                <tr>
+                    <td>
+                        <strong>{{ row.service.name }}</strong>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">
+                            {{ row.service.get_classification_display }}
+                        </div>
+                    </td>
+                    <td>{{ row.service.unit.name }} ({{ row.service.unit.office.code }})</td>
+                    <td class="mono"><strong>{{ row.target_pct }} min</strong></td>
+                    <td class="mono" style="font-weight: 700;">{{ row.served_count }}</td>
+                    <td class="mono">{{ row.avg_wait_minutes }} min</td>
+                    <td class="mono">{{ row.avg_actual_minutes }} min</td>
+                    <td>
+                        {% if row.served_count > 0 %}
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="mono" style="font-weight: 800; color: {% if row.compliance_pct >= 85 %}var(--dole-green){% elif row.compliance_pct >= 70 %}#d97706{% else %}var(--dole-red){% endif %};">
+                                {{ row.compliance_pct }}%
+                            </span>
+                        </div>
+                        {% else %}
+                        <span style="color: var(--text-muted);">—</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono">{{ row.skipped_count }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                        No transaction data found for the selected filters.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
