@@ -36,6 +36,18 @@ export default function StaffQueue() {
     }
   }, [user, selectedOffice]);
 
+  // Auto-select first counter if none chosen or counter is invalid
+  useEffect(() => {
+    if (queueData.counters?.length > 0) {
+      const hasValid = queueData.counters.some(c => String(c.id) === String(selectedCounter));
+      if (!selectedCounter || !hasValid) {
+        const firstId = String(queueData.counters[0].id);
+        setSelectedCounter(firstId);
+        localStorage.setItem('ctms_staff_counter', firstId);
+      }
+    }
+  }, [queueData.counters, selectedCounter]);
+
   // Persist selections
   const handleOfficeChange = (e) => {
     const val = e.target.value;
@@ -83,14 +95,23 @@ export default function StaffQueue() {
 
   // Actions
   const handleCallNext = async () => {
-    if (!selectedOffice || !selectedCounter) {
-      setError('Please select both your Office and Window Counter to call next client.');
+    if (!selectedOffice) {
+      setError('Please select an Office first.');
       return;
+    }
+    const counterToUse = selectedCounter || (queueData.counters?.length > 0 ? String(queueData.counters[0].id) : null);
+    if (!counterToUse) {
+      setError('No window counters available for this office. Please set up a counter first.');
+      return;
+    }
+    if (!selectedCounter && counterToUse) {
+      setSelectedCounter(counterToUse);
+      localStorage.setItem('ctms_staff_counter', counterToUse);
     }
     try {
       setActionLoading(true);
       setError('');
-      const called = await staffApi.callNext(selectedOffice, selectedCounter);
+      const called = await staffApi.callNext(selectedOffice, counterToUse);
       if (!called) {
         setError('No waiting clients currently in the queue.');
       } else {
@@ -101,6 +122,19 @@ export default function StaffQueue() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleCallSpecific = async (txId) => {
+    const counterToUse = selectedCounter || (queueData.counters?.length > 0 ? String(queueData.counters[0].id) : null);
+    if (!counterToUse) {
+      setError('No window counters available. Please select or add a counter.');
+      return;
+    }
+    if (!selectedCounter && counterToUse) {
+      setSelectedCounter(counterToUse);
+      localStorage.setItem('ctms_staff_counter', counterToUse);
+    }
+    await handleAction(txId, 'call', { counter: counterToUse });
   };
 
   const handleAction = async (txId, action, payload = {}) => {
@@ -195,11 +229,11 @@ export default function StaffQueue() {
 
               <button
                 onClick={handleCallNext}
-                disabled={actionLoading || !selectedCounter}
+                disabled={actionLoading}
                 className="btn btn-primary btn-lg"
                 style={{ minHeight: '46px', fontWeight: 800, padding: '0.75rem 1.75rem' }}
               >
-                📢 Call Next Client
+                {actionLoading ? 'Calling...' : '📢 Call Next Client'}
               </button>
             </div>
           </div>
@@ -361,14 +395,8 @@ export default function StaffQueue() {
                         )}
                       </div>
                       <button
-                        onClick={() => {
-                          if (!selectedCounter) {
-                            setError('Please select a Counter first.');
-                            return;
-                          }
-                          handleAction(tx.id, 'call', { counter: selectedCounter });
-                        }}
-                        disabled={actionLoading || !selectedCounter}
+                        onClick={() => handleCallSpecific(tx.id)}
+                        disabled={actionLoading}
                         className="btn btn-primary btn-sm"
                         style={{ minHeight: '32px' }}
                       >

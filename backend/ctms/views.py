@@ -65,7 +65,10 @@ def get_staff_offices(user):
     if user.is_superuser:
         return CsmOffice.objects.filter(is_active=True)
     assigned_ids = CtmsStaffOffice.objects.filter(user=user).values_list('office_id', flat=True)
-    return CsmOffice.objects.filter(id__in=assigned_ids, is_active=True)
+    if assigned_ids.exists():
+        return CsmOffice.objects.filter(id__in=assigned_ids, is_active=True)
+    # If staff user has no explicit office restrictions, allow all active offices
+    return CsmOffice.objects.filter(is_active=True)
 
 
 class IsStaffUser(permissions.BasePermission):
@@ -212,6 +215,11 @@ class StaffQueueView(APIView):
             serving_qs = serving_qs.filter(counter_id=counter_id)
 
         counters_qs = CtmsCounter.objects.filter(office=office, is_active=True)
+        if not counters_qs.exists():
+            counter_names = ["Window 1", "Window 2", "Window 3 (Priority)", "Helpdesk"]
+            for name in counter_names:
+                CtmsCounter.objects.get_or_create(office=office, name=name, defaults={'is_active': True})
+            counters_qs = CtmsCounter.objects.filter(office=office, is_active=True)
 
         return Response({
             "office": CsmOfficeSerializer(office).data,
@@ -253,12 +261,18 @@ class StaffCallNextView(APIView):
         office_id = request.data.get('office')
         counter_id = request.data.get('counter')
 
-        if not office_id or not counter_id:
-            return Response({"detail": "Office and counter are required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not office_id:
+            return Response({"detail": "Office is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         allowed_offices = get_staff_offices(request.user)
         office = get_object_or_404(allowed_offices, pk=office_id)
-        counter = get_object_or_404(CtmsCounter, pk=counter_id, office=office, is_active=True)
+
+        if counter_id:
+            counter = get_object_or_404(CtmsCounter, pk=counter_id, office=office, is_active=True)
+        else:
+            counter = CtmsCounter.objects.filter(office=office, is_active=True).first()
+            if not counter:
+                counter, _ = CtmsCounter.objects.get_or_create(office=office, name="Window 1", defaults={'is_active': True})
 
         tx = services.call_next_transaction(office=office, counter=counter)
         if not tx:
@@ -279,9 +293,12 @@ class StaffTransactionActionView(APIView):
         try:
             if action == 'call':
                 counter_id = request.data.get('counter')
-                if not counter_id:
-                    return Response({"detail": "Counter is required to call."}, status=status.HTTP_400_BAD_REQUEST)
-                counter = get_object_or_404(CtmsCounter, pk=counter_id, office=tx.office, is_active=True)
+                if counter_id:
+                    counter = get_object_or_404(CtmsCounter, pk=counter_id, office=tx.office, is_active=True)
+                else:
+                    counter = CtmsCounter.objects.filter(office=tx.office, is_active=True).first()
+                    if not counter:
+                        counter, _ = CtmsCounter.objects.get_or_create(office=tx.office, name="Window 1", defaults={'is_active': True})
                 tx = services.call_specific_transaction(tx, counter)
 
             elif action == 'recall':

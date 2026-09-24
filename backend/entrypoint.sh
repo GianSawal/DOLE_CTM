@@ -32,6 +32,10 @@ EOF
 echo "==> Running database migrations..."
 python manage.py migrate --noinput
 
+echo "==> Initializing offices, counters and staff assignments..."
+python manage.py seed_ctms_dev || true
+python manage.py init_ctms_counters || true
+
 echo "==> Collecting static files..."
 python manage.py collectstatic --noinput
 
