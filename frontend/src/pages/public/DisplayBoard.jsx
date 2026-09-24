@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicApi } from '../../api/public';
 import { translations } from '../../locales/translations';
+import { playAirportChime, getAudioContext } from '../../utils/airportChime';
 
 const fallbackServiceDescriptions = {
   sena: 'Conciliation-mediation of labor issues, disputes, and worker grievances.',
@@ -37,23 +38,13 @@ export default function DisplayBoard() {
   const [soundEnabled, setSoundEnabled] = useState(false);
   const prevServingRef = useRef([]);
 
-  // Audio tone helper
-  const playChime = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.6);
-    } catch {
-      // Audio context might be restricted before interaction
+  const handleToggleSound = () => {
+    const nextState = !soundEnabled;
+    setSoundEnabled(nextState);
+    if (nextState) {
+      // Resume audio context on user gesture and play sample airport chime
+      getAudioContext();
+      playAirportChime();
     }
   };
 
@@ -64,12 +55,12 @@ export default function DisplayBoard() {
       try {
         const data = await publicApi.getDisplayBoard(officeId);
         if (isMounted) {
-          // Check if new queue number called to chime
+          // Check if new queue number called or re-called to chime
           if (soundEnabled && prevServingRef.current.length > 0) {
-            const prevNumbers = prevServingRef.current.map(s => s.queue_no);
-            const hasNew = data.serving?.some(s => !prevNumbers.includes(s.queue_no));
+            const prevKeys = prevServingRef.current.map(s => `${s.queue_no}-${s.called_at || ''}`);
+            const hasNew = data.serving?.some(s => !prevKeys.includes(`${s.queue_no}-${s.called_at || ''}`));
             if (hasNew) {
-              playChime();
+              playAirportChime();
             }
           }
           prevServingRef.current = data.serving || [];
@@ -153,14 +144,39 @@ export default function DisplayBoard() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
+            onClick={handleToggleSound}
             className="btn btn-outline btn-sm"
-            style={{ color: '#ffffff', borderColor: 'rgba(255,255,255,0.2)', backgroundColor: soundEnabled ? 'rgba(3, 5, 186, 0.4)' : 'transparent' }}
+            style={{
+              color: '#ffffff',
+              borderColor: soundEnabled ? 'var(--dole-gold)' : 'rgba(255,255,255,0.2)',
+              backgroundColor: soundEnabled ? 'rgba(217, 119, 6, 0.25)' : 'transparent',
+              fontWeight: 600,
+            }}
+            title={soundEnabled ? 'Click to mute airport chime' : 'Click to enable airport announcement chime'}
           >
-            {soundEnabled ? '🔔 Audio Chime ON' : '🔕 Audio Chime OFF'}
+            {soundEnabled ? '🔔 Airport Chime ON' : '🔕 Airport Chime OFF'}
           </button>
+          {soundEnabled && (
+            <button
+              onClick={() => {
+                getAudioContext();
+                playAirportChime();
+              }}
+              className="btn btn-outline btn-sm"
+              style={{
+                color: 'var(--dole-gold)',
+                borderColor: 'rgba(217, 119, 6, 0.5)',
+                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                padding: '0.25rem 0.6rem',
+                fontSize: '0.75rem',
+              }}
+              title="Test airport chime on speakers"
+            >
+              ▶ Test Chime
+            </button>
+          )}
           <button
             onClick={() => setLang(lang === 'en' ? 'fil' : 'en')}
             className="btn btn-outline btn-sm"
