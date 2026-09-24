@@ -153,6 +153,18 @@ export default function StaffQueue() {
     }
   };
 
+  const handleDeleteRecentPersonnel = (nameToDelete, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const updated = recentPersonnel.filter(n => n !== nameToDelete);
+    setRecentPersonnel(updated);
+    try {
+      localStorage.setItem('ctms_recent_personnel', JSON.stringify(updated));
+    } catch {}
+  };
+
   // Actions
   const handleCallNext = async () => {
     if (!selectedOffice) {
@@ -803,26 +815,74 @@ export default function StaffQueue() {
 
           {recentPersonnel.length > 0 && (
             <div style={{ marginBottom: '1.25rem' }}>
-              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem', display: 'block' }}>
-                Quick select recently assigned:
-              </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+                  Quick select recently assigned:
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  Click ✕ to remove
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
                 {recentPersonnel.map((name, idx) => (
-                  <button
+                  <div
                     key={idx}
-                    type="button"
-                    onClick={() => setAssignPersonnelName(name)}
-                    className="btn btn-outline btn-xs"
                     style={{
-                      fontSize: '0.8rem',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: '12px',
-                      backgroundColor: assignPersonnelName === name ? 'rgba(3, 5, 186, 0.1)' : 'transparent',
-                      borderColor: assignPersonnelName === name ? 'var(--dole-blue)' : 'var(--border-color)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      borderRadius: '20px',
+                      backgroundColor: assignPersonnelName === name ? 'rgba(3, 5, 186, 0.1)' : '#f8fafc',
+                      border: assignPersonnelName === name ? '1.5px solid var(--dole-blue)' : '1px solid #cbd5e1',
+                      overflow: 'hidden',
+                      transition: 'all 0.15s ease',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                     }}
                   >
-                    👤 {name}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setAssignPersonnelName(name)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        padding: '0.25rem 0.55rem',
+                        cursor: 'pointer',
+                        fontWeight: assignPersonnelName === name ? 700 : 500,
+                        color: assignPersonnelName === name ? 'var(--dole-blue)' : 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.8rem',
+                      }}
+                      title={`Select ${name}`}
+                    >
+                      <span>👤</span>
+                      <span>{name}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteRecentPersonnel(name, e)}
+                      style={{
+                        border: 'none',
+                        background: 'transparent',
+                        padding: '0.2rem 0.45rem',
+                        paddingLeft: '0.1rem',
+                        cursor: 'pointer',
+                        color: '#94a3b8',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: 1,
+                        transition: 'color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--dole-red)'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+                      title={`Remove "${name}" from recent list`}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
