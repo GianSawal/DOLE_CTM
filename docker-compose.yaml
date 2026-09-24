@@ -9,7 +9,9 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-80}:80"
+      - "${FRONTEND_PORT:-5174}:80"
+    expose:
+      - 80
     depends_on:
       - backend
     networks:
@@ -17,15 +19,15 @@ services:
 
   # -------------------------------------------------------------
   # Backend: Django 5.2 REST API + Gunicorn + WhiteNoise
-  # Handles migrations, static assets, and queuing logic
+  # Internal only: Proxied via Frontend Nginx on port 8000
   # -------------------------------------------------------------
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+    expose:
+      - 8000
     environment:
       - DJANGO_DEBUG=${DJANGO_DEBUG:-False}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-coolify-ctms-secret-key-change-in-production}
