@@ -48,7 +48,8 @@ class Command(BaseCommand):
             user.set_password(password)
             user.save()
 
-            # Assign to their specific office
+            # Strict RBAC: Staff account can ONLY access their own assigned office
+            CtmsStaffOffice.objects.filter(user=user).exclude(office=office).delete()
             CtmsStaffOffice.objects.get_or_create(user=user, office=office)
 
             # Ensure default counters exist for this office

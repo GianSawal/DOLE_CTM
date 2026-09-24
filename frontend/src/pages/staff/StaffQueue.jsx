@@ -28,12 +28,15 @@ export default function StaffQueue() {
   // Slip modal state
   const [printedTx, setPrintedTx] = useState(null);
 
-  // Auto-select first office if none chosen
+  // Strict RBAC: Ensure selectedOffice is ALWAYS an office assigned to this user
   useEffect(() => {
-    if (!selectedOffice && user?.assigned_offices?.length > 0) {
-      const firstId = String(user.assigned_offices[0].id);
-      setSelectedOffice(firstId);
-      localStorage.setItem('ctms_staff_office', firstId);
+    if (user?.assigned_offices?.length > 0) {
+      const isAssigned = user.assigned_offices.some(o => String(o.id) === String(selectedOffice));
+      if (!selectedOffice || !isAssigned) {
+        const firstId = String(user.assigned_offices[0].id);
+        setSelectedOffice(firstId);
+        localStorage.setItem('ctms_staff_office', firstId);
+      }
     }
   }, [user, selectedOffice]);
 
@@ -208,15 +211,33 @@ export default function StaffQueue() {
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '1rem' }}>
               <div>
                 <label style={{ fontSize: '0.8rem' }}>Assigned Office</label>
-                <select
-                  value={selectedOffice}
-                  onChange={handleOfficeChange}
-                  style={{ minWidth: '240px', minHeight: '44px' }}
-                >
-                  {user?.assigned_offices?.map(off => (
-                    <option key={off.id} value={off.id}>{off.name} ({off.code})</option>
-                  ))}
-                </select>
+                {user?.assigned_offices?.length === 1 && !user?.is_superuser ? (
+                  <div style={{
+                    minWidth: '240px',
+                    minHeight: '44px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 0.875rem',
+                    backgroundColor: 'rgba(3, 5, 186, 0.05)',
+                    border: '1px solid rgba(3, 5, 186, 0.2)',
+                    borderRadius: 'var(--radius-md)',
+                    fontWeight: 700,
+                    color: 'var(--dole-blue)',
+                    fontSize: '0.92rem',
+                  }}>
+                    🔒 {user.assigned_offices[0].name} ({user.assigned_offices[0].code})
+                  </div>
+                ) : (
+                  <select
+                    value={selectedOffice}
+                    onChange={handleOfficeChange}
+                    style={{ minWidth: '240px', minHeight: '44px' }}
+                  >
+                    {user?.assigned_offices?.map(off => (
+                      <option key={off.id} value={off.id}>{off.name} ({off.code})</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>

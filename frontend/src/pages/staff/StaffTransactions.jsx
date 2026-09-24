@@ -20,6 +20,13 @@ export default function StaffTransactions() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
+  // Strict RBAC: Default and lock to assigned office for non-superusers
+  useEffect(() => {
+    if (user?.assigned_offices?.length === 1 && !user?.is_superuser) {
+      setOfficeFilter(String(user.assigned_offices[0].id));
+    }
+  }, [user]);
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
@@ -98,16 +105,33 @@ export default function StaffTransactions() {
           <form onSubmit={handleSearchSubmit} style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end' }}>
             <div style={{ flex: '1 1 200px' }}>
               <label style={{ fontSize: '0.8rem' }}>Office</label>
-              <select
-                value={officeFilter}
-                onChange={(e) => setOfficeFilter(e.target.value)}
-                style={{ minHeight: '44px' }}
-              >
-                <option value="">All Assigned Offices</option>
-                {user?.assigned_offices?.map(o => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </select>
+              {user?.assigned_offices?.length === 1 && !user?.is_superuser ? (
+                <div style={{
+                  minHeight: '44px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 0.875rem',
+                  backgroundColor: 'rgba(3, 5, 186, 0.05)',
+                  border: '1px solid rgba(3, 5, 186, 0.2)',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: 700,
+                  color: 'var(--dole-blue)',
+                  fontSize: '0.9rem',
+                }}>
+                  🔒 {user.assigned_offices[0].name}
+                </div>
+              ) : (
+                <select
+                  value={officeFilter}
+                  onChange={(e) => setOfficeFilter(e.target.value)}
+                  style={{ minHeight: '44px' }}
+                >
+                  <option value="">All Assigned Offices</option>
+                  {user?.assigned_offices?.map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div style={{ flex: '1 1 150px' }}>

@@ -33,16 +33,16 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Created {total_counters} window counters."))
 
-        # Assign all staff users to active offices
-        staff_users = User.objects.filter(is_staff=True)
+        # Ensure superuser administrators have access to all offices
+        superusers = User.objects.filter(is_superuser=True)
         assigned_count = 0
-        for staff in staff_users:
+        for admin in superusers:
             for office in offices:
                 _, created = CtmsStaffOffice.objects.get_or_create(
-                    user=staff,
+                    user=admin,
                     office=office
                 )
                 if created:
                     assigned_count += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Created {assigned_count} staff-office assignments for {staff_users.count()} staff user(s)."))
+        self.stdout.write(self.style.SUCCESS(f"Configured counters and admin assignments. Regular staff accounts are strictly assigned per office via seed_office_staff."))

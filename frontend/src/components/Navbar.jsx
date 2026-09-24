@@ -77,9 +77,13 @@ export default function Navbar() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{user?.username}</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-              {user?.is_superuser ? 'DOLE Superuser' : 'Window Staff'}
+            <div style={{ fontWeight: 700, color: 'var(--dole-blue)' }}>{user?.username}</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600 }}>
+              {user?.is_superuser
+                ? 'DOLE Administrator (All Offices)'
+                : (user?.assigned_offices?.[0]
+                    ? `${user.assigned_offices[0].name} (${user.assigned_offices[0].code})`
+                    : 'Window Staff')}
             </div>
           </div>
           <button onClick={handleLogout} className="btn btn-outline btn-sm" style={{ minHeight: '34px' }}>

@@ -7,7 +7,7 @@ from django.db.models import Avg, F, ExpressionWrapper, fields
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import status, viewsets, permissions
+from rest_framework import status, viewsets, permissions, exceptions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -62,13 +62,15 @@ class StaffMeView(APIView):
 
 def get_staff_offices(user):
     """Returns queryset of CsmOffices the staff user has access to."""
+    if not user or not user.is_authenticated or not user.is_staff:
+        return CsmOffice.objects.none()
     if user.is_superuser:
         return CsmOffice.objects.filter(is_active=True)
     assigned_ids = CtmsStaffOffice.objects.filter(user=user).values_list('office_id', flat=True)
     if assigned_ids.exists():
         return CsmOffice.objects.filter(id__in=assigned_ids, is_active=True)
-    # If staff user has no explicit office restrictions, allow all active offices
-    return CsmOffice.objects.filter(is_active=True)
+    # Strict RBAC: Staff without an explicit office assignment have access to NONE
+    return CsmOffice.objects.none()
 
 
 class IsStaffUser(permissions.BasePermission):
@@ -263,12 +265,16 @@ class StaffQueueView(APIView):
         counter_id = request.query_params.get('counter')
 
         allowed_offices = get_staff_offices(request.user)
+        if not allowed_offices.exists():
+            return Response({"detail": "Forbidden: No office assigned to your staff account."}, status=status.HTTP_403_FORBIDDEN)
+
         if office_id:
-            office = get_object_or_404(allowed_offices, pk=office_id)
+            try:
+                office = allowed_offices.get(pk=office_id)
+            except CsmOffice.DoesNotExist:
+                return Response({"detail": "Forbidden: You are not authorized to access this office queue."}, status=status.HTTP_403_FORBIDDEN)
         else:
             office = allowed_offices.first()
-            if not office:
-                return Response({"waiting": [], "serving": [], "counters": []})
 
         today = timezone.localdate()
 
@@ -340,7 +346,10 @@ class StaffCallNextView(APIView):
             return Response({"detail": "Office is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         allowed_offices = get_staff_offices(request.user)
-        office = get_object_or_404(allowed_offices, pk=office_id)
+        try:
+            office = allowed_offices.get(pk=office_id)
+        except CsmOffice.DoesNotExist:
+            return Response({"detail": "Forbidden: You are not authorized to call clients for this office."}, status=status.HTTP_403_FORBIDDEN)
 
         if counter_id:
             counter = get_object_or_404(CtmsCounter, pk=counter_id, office=office, is_active=True)
@@ -410,11 +419,18 @@ class StaffTransactionsListView(APIView):
 
     def get(self, request):
         allowed_offices = get_staff_offices(request.user)
-        qs = CtmsTransaction.objects.filter(office__in=allowed_offices).select_related('office', 'service', 'counter', 'served_by')
+        if not allowed_offices.exists():
+            return Response([])
 
         office_id = request.query_params.get('office')
         if office_id:
-            qs = qs.filter(office_id=office_id)
+            if not allowed_offices.filter(pk=office_id).exists():
+                return Response({"detail": "Forbidden: You are not assigned to this office."}, status=status.HTTP_403_FORBIDDEN)
+            qs = CtmsTransaction.objects.filter(office_id=office_id)
+        else:
+            qs = CtmsTransaction.objects.filter(office__in=allowed_offices)
+
+        qs = qs.select_related('office', 'service', 'counter', 'served_by')
 
         service_id = request.query_params.get('service')
         if service_id:
@@ -452,11 +468,16 @@ class StaffReportsSummaryView(APIView):
 
     def get(self, request):
         allowed_offices = get_staff_offices(request.user)
-        qs = CtmsTransaction.objects.filter(office__in=allowed_offices)
+        if not allowed_offices.exists():
+            return Response({"detail": "Forbidden: No office assigned to your account."}, status=status.HTTP_403_FORBIDDEN)
 
         office_id = request.query_params.get('office')
         if office_id:
-            qs = qs.filter(office_id=office_id)
+            if not allowed_offices.filter(pk=office_id).exists():
+                return Response({"detail": "Forbidden: You are not assigned to this office."}, status=status.HTTP_403_FORBIDDEN)
+            qs = CtmsTransaction.objects.filter(office_id=office_id)
+        else:
+            qs = CtmsTransaction.objects.filter(office__in=allowed_offices)
 
         date_from = request.query_params.get('date_from')
         if date_from:
@@ -542,6 +563,13 @@ class CtmsCounterViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         allowed_offices = get_staff_offices(self.request.user)
         return CtmsCounter.objects.filter(office__in=allowed_offices)
+
+    def perform_create(self, serializer):
+        allowed_offices = get_staff_offices(self.request.user)
+        office = serializer.validated_data.get('office')
+        if not allowed_offices.filter(pk=office.pk).exists():
+            raise exceptions.PermissionDenied("Forbidden: You are not authorized to create counters for this office.")
+        serializer.save()
 
 
 class CtmsStaffOfficeViewSet(viewsets.ModelViewSet):

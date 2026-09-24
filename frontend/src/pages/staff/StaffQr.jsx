@@ -8,8 +8,11 @@ export default function StaffQr() {
   const [selectedOfficeId, setSelectedOfficeId] = useState('');
 
   useEffect(() => {
-    if (!selectedOfficeId && user?.assigned_offices?.length > 0) {
-      setSelectedOfficeId(String(user.assigned_offices[0].id));
+    if (user?.assigned_offices?.length > 0) {
+      const isAssigned = user.assigned_offices.some(o => String(o.id) === String(selectedOfficeId));
+      if (!selectedOfficeId || !isAssigned) {
+        setSelectedOfficeId(String(user.assigned_offices[0].id));
+      }
     }
   }, [user, selectedOfficeId]);
 
@@ -39,15 +42,32 @@ export default function StaffQr() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <select
-              value={selectedOfficeId}
-              onChange={(e) => setSelectedOfficeId(e.target.value)}
-              style={{ minHeight: '44px', minWidth: '220px' }}
-            >
-              {user?.assigned_offices?.map(o => (
-                <option key={o.id} value={o.id}>{o.name} ({o.code})</option>
-              ))}
-            </select>
+            {user?.assigned_offices?.length === 1 && !user?.is_superuser ? (
+              <div style={{
+                minHeight: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0 1rem',
+                backgroundColor: 'rgba(3, 5, 186, 0.05)',
+                border: '1px solid rgba(3, 5, 186, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                fontWeight: 700,
+                color: 'var(--dole-blue)',
+                fontSize: '0.9rem',
+              }}>
+                🔒 {user.assigned_offices[0].name} ({user.assigned_offices[0].code})
+              </div>
+            ) : (
+              <select
+                value={selectedOfficeId}
+                onChange={(e) => setSelectedOfficeId(e.target.value)}
+                style={{ minHeight: '44px', minWidth: '220px' }}
+              >
+                {user?.assigned_offices?.map(o => (
+                  <option key={o.id} value={o.id}>{o.name} ({o.code})</option>
+                ))}
+              </select>
+            )}
             <button onClick={handlePrint} className="btn btn-primary" style={{ minHeight: '44px' }}>
               🖨️ Print Poster
             </button>
