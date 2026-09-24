@@ -2,7 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { publicApi } from '../../api/public';
 import { translations } from '../../locales/translations';
-import { playAirportChime, getAudioContext } from '../../utils/airportChime';
+import {
+  playAirportChime,
+  getAudioContext,
+  unlockAudioContext,
+  isAudioUnlocked,
+  CHIME_BROADCAST_CHANNEL,
+} from '../../utils/airportChime';
 
 const fallbackServiceDescriptions = {
   sena: 'Conciliation-mediation of labor issues, disputes, and worker grievances.',
@@ -35,15 +41,44 @@ export default function DisplayBoard() {
   const [displayData, setDisplayData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [soundEnabled, setSoundEnabled] = useState(false);
-  const prevServingRef = useRef([]);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    const saved = localStorage.getItem('ctms_display_sound_enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [audioUnlocked, setAudioUnlocked] = useState(() => isAudioUnlocked());
 
-  const handleToggleSound = () => {
+  const prevServingRef = useRef([]);
+  const lastCalledRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
+
+  // Global listener for first user interaction (touch, click, key) to unlock Web Audio API
+  useEffect(() => {
+    const handleUnlock = () => {
+      unlockAudioContext().then(unlocked => {
+        if (unlocked) {
+          setAudioUnlocked(true);
+        }
+      });
+    };
+
+    window.addEventListener('click', handleUnlock);
+    window.addEventListener('touchstart', handleUnlock);
+    window.addEventListener('keydown', handleUnlock);
+
+    return () => {
+      window.removeEventListener('click', handleUnlock);
+      window.removeEventListener('touchstart', handleUnlock);
+      window.removeEventListener('keydown', handleUnlock);
+    };
+  }, []);
+
+  const handleToggleSound = async () => {
     const nextState = !soundEnabled;
     setSoundEnabled(nextState);
+    localStorage.setItem('ctms_display_sound_enabled', String(nextState));
     if (nextState) {
-      // Resume audio context on user gesture and play sample airport chime
-      getAudioContext();
+      await unlockAudioContext();
+      setAudioUnlocked(true);
       playAirportChime();
     }
   };
@@ -54,19 +89,38 @@ export default function DisplayBoard() {
     async function fetchDisplay() {
       try {
         const data = await publicApi.getDisplayBoard(officeId);
-        if (isMounted) {
-          // Check if new queue number called or re-called to chime
-          if (soundEnabled && prevServingRef.current.length > 0) {
-            const prevKeys = prevServingRef.current.map(s => `${s.queue_no}-${s.called_at || ''}`);
-            const hasNew = data.serving?.some(s => !prevKeys.includes(`${s.queue_no}-${s.called_at || ''}`));
-            if (hasNew) {
+        if (!isMounted) return;
+
+        const currentLatestCall = data.latest_called_at || (data.serving?.[0]?.called_at) || null;
+
+        if (isInitialLoadRef.current) {
+          // Record baseline timestamp on initial mount without chiming
+          lastCalledRef.current = currentLatestCall;
+          prevServingRef.current = data.serving || [];
+          isInitialLoadRef.current = false;
+        } else {
+          // Detect call, recall, or call-next:
+          // 1. latest_called_at changed (new timestamp from call, recall, or call next)
+          const callTimestampChanged = Boolean(
+            currentLatestCall &&
+            currentLatestCall !== lastCalledRef.current
+          );
+
+          // 2. New queue number appeared in serving (e.g. from empty queue or status change)
+          const prevNumbers = (prevServingRef.current || []).map(s => s.queue_no);
+          const hasNewQueueNumber = data.serving?.some(s => !prevNumbers.includes(s.queue_no));
+
+          if (callTimestampChanged || hasNewQueueNumber) {
+            lastCalledRef.current = currentLatestCall;
+            if (soundEnabled) {
               playAirportChime();
             }
           }
           prevServingRef.current = data.serving || [];
-          setDisplayData(data);
-          setError('');
         }
+
+        setDisplayData(data);
+        setError('');
       } catch (err) {
         if (isMounted) {
           setError(err.message || 'Error fetching display data.');
@@ -79,11 +133,53 @@ export default function DisplayBoard() {
     }
 
     fetchDisplay();
-    const interval = setInterval(fetchDisplay, 5000); // 5s polling mandated by §1
+    // Fast polling: 2500ms
+    const interval = setInterval(fetchDisplay, 2500);
+
+    // Cross-tab broadcast listener for instant 0ms chime on same browser/device
+    let bc = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel(CHIME_BROADCAST_CHANNEL);
+        bc.onmessage = (event) => {
+          if (!isMounted) return;
+          if (event.data?.type === 'QUEUE_CALLED') {
+            if (!event.data.officeId || String(event.data.officeId) === String(officeId)) {
+              if (soundEnabled) {
+                playAirportChime();
+              }
+              // Immediately fetch updated display data
+              fetchDisplay();
+            }
+          }
+        };
+      }
+    } catch {}
+
+    // Storage fallback for cross-tab sync
+    const handleStorage = (e) => {
+      if (!isMounted) return;
+      if (e.key === 'dole_last_queue_call' && e.newValue) {
+        try {
+          const item = JSON.parse(e.newValue);
+          if (!item.officeId || String(item.officeId) === String(officeId)) {
+            if (soundEnabled) {
+              playAirportChime();
+            }
+            fetchDisplay();
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
+      if (bc) {
+        try { bc.close(); } catch {}
+      }
+      window.removeEventListener('storage', handleStorage);
     };
   }, [officeId, soundEnabled]);
 
@@ -113,6 +209,41 @@ export default function DisplayBoard() {
       fontFamily: 'var(--font-ui)',
       padding: '1.5rem 2rem',
     }}>
+      {/* Autoplay Audio Unlock Notice */}
+      {soundEnabled && !audioUnlocked && (
+        <div
+          onClick={async () => {
+            await unlockAudioContext();
+            setAudioUnlocked(true);
+            playAirportChime();
+          }}
+          style={{
+            backgroundColor: 'rgba(217, 119, 6, 0.95)',
+            color: '#ffffff',
+            padding: '0.65rem 1.5rem',
+            borderRadius: '8px',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(217, 119, 6, 0.35)',
+            border: '1px solid rgba(255,255,255,0.2)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 600 }}>
+            <span style={{ fontSize: '1.25rem' }}>🔔</span>
+            <span>Airport Chime is ON: Tap or click anywhere on this screen to activate audio playback for this display.</span>
+          </div>
+          <button
+            className="btn btn-sm"
+            style={{ backgroundColor: '#ffffff', color: '#b45309', fontWeight: 800, border: 'none', minWidth: '120px' }}
+          >
+            Activate Sound
+          </button>
+        </div>
+      )}
+
       {/* Top Banner */}
       <header style={{
         display: 'flex',
@@ -160,8 +291,9 @@ export default function DisplayBoard() {
           </button>
           {soundEnabled && (
             <button
-              onClick={() => {
-                getAudioContext();
+              onClick={async () => {
+                await unlockAudioContext();
+                setAudioUnlocked(true);
                 playAirportChime();
               }}
               className="btn btn-outline btn-sm"

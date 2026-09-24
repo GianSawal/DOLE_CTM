@@ -221,9 +221,10 @@ class PublicDisplayBoardView(APIView):
         for s in serving_qs:
             service_name = s.service.name if s.service else ""
             serving_data.append({
+                "id": s.id,
                 "counter": s.counter.name if s.counter else "Counter",
                 "queue_no": s.queue_no,
-                "called_at": s.called_at,
+                "called_at": s.called_at.isoformat() if s.called_at else None,
                 "service_name": service_name,
                 "service_description": get_service_description(service_name),
             })
@@ -236,11 +237,16 @@ class PublicDisplayBoardView(APIView):
         ).order_by('-is_priority', 'checked_in_at')[:10]
 
         next_queue_numbers = [tx.queue_no for tx in next_waiting_qs]
+        first_serving = serving_qs.first()
+        latest_called_at = first_serving.called_at.isoformat() if first_serving and first_serving.called_at else None
 
         return Response({
             "office": CsmOfficeSerializer(office).data,
             "serving": serving_data,
             "next": next_queue_numbers,
+            "latest_called_at": latest_called_at,
+            "latest_called_queue_no": first_serving.queue_no if first_serving else None,
+            "latest_called_counter": (first_serving.counter.name if first_serving.counter else "Counter") if first_serving else None,
             "updated_at": timezone.now().isoformat(),
         })
 

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
 import Modal from '../../components/Modal';
 import PrintSlip from '../../components/PrintSlip';
+import { broadcastQueueCall } from '../../utils/airportChime';
 
 export default function StaffQueue() {
   const { user } = useAuth();
@@ -115,6 +116,12 @@ export default function StaffQueue() {
       if (!called) {
         setError('No waiting clients currently in the queue.');
       } else {
+        broadcastQueueCall({
+          officeId: selectedOffice,
+          queueNo: called.queue_no,
+          counter: called.counter_name,
+          action: 'call_next',
+        });
         await fetchQueue();
       }
     } catch (err) {
@@ -141,7 +148,16 @@ export default function StaffQueue() {
     try {
       setActionLoading(true);
       setError('');
-      await staffApi.transactionAction(txId, action, payload);
+      const res = await staffApi.transactionAction(txId, action, payload);
+      if (action === 'call' || action === 'recall') {
+        broadcastQueueCall({
+          officeId: selectedOffice,
+          txId,
+          queueNo: res?.queue_no,
+          counter: res?.counter_name,
+          action,
+        });
+      }
       await fetchQueue();
     } catch (err) {
       setError(err.message || `Failed to perform ${action}.`);

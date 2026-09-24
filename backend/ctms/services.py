@@ -90,8 +90,7 @@ def call_next_transaction(office, counter):
         now = timezone.now()
         tx.status = CtmsTransaction.STATUS_SERVING
         tx.counter = counter
-        if not tx.called_at:
-            tx.called_at = now
+        tx.called_at = now
         tx.save(update_fields=['status', 'counter', 'called_at'])
         return tx
 
@@ -104,8 +103,7 @@ def call_specific_transaction(tx, counter):
     now = timezone.now()
     tx.status = CtmsTransaction.STATUS_SERVING
     tx.counter = counter
-    if not tx.called_at:
-        tx.called_at = now
+    tx.called_at = now
     tx.save(update_fields=['status', 'counter', 'called_at'])
     return tx
 
