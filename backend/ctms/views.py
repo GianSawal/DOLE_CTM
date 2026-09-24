@@ -137,6 +137,72 @@ class PublicTicketDetailView(APIView):
         return Response(TicketPublicSerializer(tx).data)
 
 
+SERVICE_DESCRIPTIONS = {
+    'Single Entry Approach (SEnA)': 'Conciliation-mediation of labor issues, employment disputes, and worker grievances.',
+    'Alien Employment Permit (AEP)': 'Issuance and renewal of employment permits for foreign nationals.',
+    'Application for Alien Employment Permit (New/Renewal)': 'Issuance and renewal of employment permits for foreign nationals.',
+    'Issuance of Certificate of Exclusion from Alien Employment Permit': 'Exclusion certification for foreign nationals exempt from AEP requirements.',
+    'Labor Inspection / Clearance': 'Compliance verification for general labor standards and occupational safety.',
+    'General Labor Standards Assistance': 'Assistance on minimum wages, overtime, holiday pay, and worker monetary benefits.',
+    'Registration of Establishment (Rule 1020)': 'Mandatory registration of commercial, industrial, or agricultural establishments under OSH standards.',
+    'Registration of Establishment under Rule 1020 of the Occupational Safety and Health Standards': 'Mandatory registration of commercial, industrial, or agricultural establishments under OSH standards.',
+    'Special Program for Employment of Students (SPES)': 'Youth employment assistance providing temporary employment during academic breaks.',
+    'TUPAD Program Assistance': 'Emergency community employment assistance for displaced, underemployed, and seasonal workers.',
+    'Livelihood Assistance / DILP': 'Grant assistance and enterprise development for vulnerable and informal sector workers.',
+    'Application for Livelihood Project Assistance': 'Grant assistance and enterprise development for vulnerable and informal sector workers.',
+    'Issuance of Letter of Approval /Disapproval of Construction Safety and Health Program (CSHP) Application': 'Evaluation and approval of construction safety and health programs for infrastructure and building projects.',
+    'Registration of Workers\' Association': 'Formal registration and certification of legitimate workers\' associations.',
+    'Registration of Union': 'Formal registration and certification of legitimate labor unions.',
+    'Registration of Collective Bargaining Agreement': 'Registration of certified collective bargaining agreements between labor and management.',
+    'Registration of Contractors': 'Registration of legitimate job contractors and subcontractors under DOLE D.O. 174.',
+    'Application for Working Child Permit': 'Permit processing for children under 15 years old engaged in public entertainment or information.',
+    'Application for Sugar Workers\' Death Benefit Claim': 'Welfare benefit assistance for families of deceased sugar industry workers.',
+    'Application for Sugar Workers\' Maternity Benefit Claim': 'Maternity welfare assistance for covered female sugar industry workers.',
+    'Application for Accreditation of Co-Partner': 'Accreditation of program partner organizations and civil society partners.',
+    'Clearing of Technical Plans for Mechanical Equipment and Electrical Installation': 'Plan evaluation and safety clearance for mechanical and electrical equipment installations.',
+    'Conduct of Technical Safety Inspection for the Issuance of Permit to Operate (PTO) Mechanical Installation/Certificate of Electrical Inspection (CEI)': 'On-site technical safety inspection for boilers, pressure vessels, and electrical systems.',
+    'Issuance of Permit to Operate (PTO) Mechanical Installation/Certificate of Electrical Inspection(CEI)': 'Issuance of regulatory permits to operate mechanical installations and certificates of electrical inspection.',
+    'Issuance of Certificate of Appearance for Professional Mechanical Engineer/Professional Electric Engineer': 'Certification of official appearance for mechanical and electrical safety engineers.',
+    'Application for Job Fair Clearance': 'Clearance verification for organizing recruitment job fairs.',
+    'Application for Job Fair Permit': 'Regulatory permit issuance for conducting local and overseas job recruitment fairs.',
+    'Application for Authority to Operate Branch Office of a Private Employment Agency': 'Authorization for operating local branch offices of private employment agencies.',
+    'Application for Authority to Recruit': 'Authorization for authorized agency representatives to conduct local recruitment.',
+    'Application for License to Operate Private Employment Agency (PEA)': 'Licensing and renewal for private recruitment and placement agencies.',
+}
+
+def get_service_description(service_name):
+    if not service_name:
+        return ""
+    if service_name in SERVICE_DESCRIPTIONS:
+        return SERVICE_DESCRIPTIONS[service_name]
+    s_lower = service_name.lower()
+    if 'sena' in s_lower or 'single entry' in s_lower:
+        return 'Conciliation-mediation of labor issues, employment disputes, and worker grievances.'
+    if 'alien' in s_lower or 'aep' in s_lower:
+        return 'Issuance and renewal of employment permits for foreign nationals.'
+    if 'tupad' in s_lower:
+        return 'Emergency community employment assistance for displaced, underemployed, and seasonal workers.'
+    if 'livelihood' in s_lower or 'dilp' in s_lower or 'kabuhayan' in s_lower:
+        return 'Grant assistance and enterprise development for vulnerable and informal sector workers.'
+    if 'spes' in s_lower or 'student' in s_lower:
+        return 'Youth employment assistance providing temporary employment during academic breaks.'
+    if '1020' in s_lower:
+        return 'Mandatory registration of commercial, industrial, or agricultural establishments under OSH standards.'
+    if 'cshp' in s_lower or 'construction' in s_lower:
+        return 'Evaluation and approval of construction safety and health programs for infrastructure and building projects.'
+    if 'inspection' in s_lower or 'labor standards' in s_lower:
+        return 'Compliance verification for general labor standards and occupational safety.'
+    if 'working child' in s_lower:
+        return 'Permit processing for children under 15 years old engaged in public entertainment or information.'
+    if 'contractor' in s_lower:
+        return 'Registration of legitimate job contractors and subcontractors under DOLE D.O. 174.'
+    if 'sugar' in s_lower:
+        return 'Social welfare benefit claims for covered sugar industry workers.'
+    if 'job fair' in s_lower:
+        return 'Regulatory evaluation and permit issuance for job recruitment fairs.'
+    return 'Frontline public service, inquiry assistance, and document processing.'
+
+
 class PublicDisplayBoardView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -149,14 +215,17 @@ class PublicDisplayBoardView(APIView):
             office=office,
             status=CtmsTransaction.STATUS_SERVING,
             queue_date=today
-        ).select_related('counter').order_by('-called_at')
+        ).select_related('counter', 'service').order_by('-called_at')
 
         serving_data = []
         for s in serving_qs:
+            service_name = s.service.name if s.service else ""
             serving_data.append({
                 "counter": s.counter.name if s.counter else "Counter",
                 "queue_no": s.queue_no,
                 "called_at": s.called_at,
+                "service_name": service_name,
+                "service_description": get_service_description(service_name),
             })
 
         # Next waiting queue numbers (priority first, then FIFO) - numbers only, never names!

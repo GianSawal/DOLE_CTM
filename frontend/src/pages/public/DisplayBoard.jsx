@@ -3,6 +3,29 @@ import { useParams } from 'react-router-dom';
 import { publicApi } from '../../api/public';
 import { translations } from '../../locales/translations';
 
+const fallbackServiceDescriptions = {
+  sena: 'Conciliation-mediation of labor issues, disputes, and worker grievances.',
+  aep: 'Employment permit processing for foreign nationals.',
+  tupad: 'Emergency community employment assistance for displaced workers.',
+  livelihood: 'Grants and enterprise development support for self-employment.',
+  dilp: 'Grants and enterprise development support for self-employment.',
+  spes: 'Youth employment assistance during academic breaks.',
+  '1020': 'Registration of establishments under OSH standards.',
+  cshp: 'Construction safety and health program evaluation & approval.',
+  inspection: 'Compliance verification for general labor standards.',
+  child: 'Working child permit processing under child labor laws.',
+  contractor: 'Contractor & subcontractor registration under D.O. 174.',
+};
+
+function getFallbackDesc(serviceName) {
+  if (!serviceName) return '';
+  const s = serviceName.toLowerCase();
+  for (const [key, desc] of Object.entries(fallbackServiceDescriptions)) {
+    if (s.includes(key)) return desc;
+  }
+  return 'Frontline public service, inquiry assistance, and document processing.';
+}
+
 export default function DisplayBoard() {
   const { officeId } = useParams();
   const [lang, setLang] = useState('en');
@@ -191,7 +214,7 @@ export default function DisplayBoard() {
                   backgroundColor: '#161e31',
                   borderRadius: '16px',
                   border: '2px solid rgba(3, 5, 186, 0.6)',
-                  padding: '2rem',
+                  padding: '1.75rem 1.5rem',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
@@ -199,25 +222,67 @@ export default function DisplayBoard() {
                   boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
                 }}>
                   <div style={{
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
+                    fontSize: '1.35rem',
+                    fontWeight: 800,
                     color: '#94a3b8',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.06em',
                   }}>
                     {item.counter}
                   </div>
                   <div className="mono" style={{
-                    fontSize: '5rem',
+                    fontSize: displayData?.serving?.length > 2 ? '4.25rem' : '5.25rem',
                     fontWeight: 900,
                     color: 'var(--dole-gold)',
                     letterSpacing: '-0.02em',
                     lineHeight: 1.1,
-                    margin: '0.5rem 0',
-                    textShadow: '0 0 30px rgba(255, 198, 3, 0.3)',
+                    margin: '0.35rem 0',
+                    textShadow: '0 0 30px rgba(255, 198, 3, 0.35)',
                   }}>
                     {item.queue_no}
                   </div>
+
+                  {item.service_name && (
+                    <div style={{
+                      marginTop: '0.65rem',
+                      textAlign: 'center',
+                      maxWidth: '92%',
+                      padding: '0.6rem 1rem',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                    }}>
+                      <div style={{
+                        fontSize: '1.1rem',
+                        fontWeight: 700,
+                        color: '#f8fafc',
+                        letterSpacing: '-0.01em',
+                        marginBottom: '0.25rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                      }}>
+                        <span style={{
+                          display: 'inline-block',
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          backgroundColor: '#3b82f6',
+                          flexShrink: 0,
+                        }} />
+                        <span>{item.service_name}</span>
+                      </div>
+                      <div style={{
+                        fontSize: '0.85rem',
+                        color: '#94a3b8',
+                        lineHeight: 1.35,
+                        fontWeight: 400,
+                      }}>
+                        {item.service_description || getFallbackDesc(item.service_name)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
