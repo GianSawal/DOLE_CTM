@@ -695,12 +695,39 @@ export default function StaffQueue() {
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
-            <label>Client Name (Optional)</label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+              <label style={{ margin: 0 }}>Client Name (Optional)</label>
+              <button
+                type="button"
+                onClick={() => setWalkinName(walkinName === 'Anonymous' ? '' : 'Anonymous')}
+                className="btn btn-sm"
+                style={{
+                  minHeight: '26px',
+                  padding: '0.15rem 0.55rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  borderRadius: '20px',
+                  backgroundColor: walkinName === 'Anonymous' ? 'var(--dole-blue)' : '#f1f5f9',
+                  color: walkinName === 'Anonymous' ? '#ffffff' : 'var(--text-secondary)',
+                  border: walkinName === 'Anonymous' ? '1px solid var(--dole-blue)' : '1px solid #cbd5e1',
+                  cursor: 'pointer',
+                }}
+                title={walkinName === 'Anonymous' ? 'Click to clear anonymous' : 'Click to register as Anonymous'}
+              >
+                {walkinName === 'Anonymous' ? '✓ Anonymous' : '👤 Anonymous'}
+              </button>
+            </div>
             <input
               type="text"
               value={walkinName}
               onChange={(e) => setWalkinName(e.target.value)}
-              placeholder="e.g. Juan Dela Cruz"
+              placeholder="e.g. Juan Dela Cruz or Anonymous"
+              style={{
+                backgroundColor: walkinName === 'Anonymous' ? 'rgba(3, 5, 186, 0.04)' : '#ffffff',
+                borderColor: walkinName === 'Anonymous' ? 'var(--dole-blue)' : undefined,
+                fontWeight: walkinName === 'Anonymous' ? 700 : 400,
+                color: walkinName === 'Anonymous' ? 'var(--dole-blue)' : undefined,
+              }}
             />
           </div>
 

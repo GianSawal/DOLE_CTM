@@ -5,58 +5,44 @@ export default function Header({ lang, setLang, title, subtitle }) {
   return (
     <>
       <div className="dole-tricolor-bar" />
-      <header style={{
-        backgroundColor: '#ffffff',
-        borderBottom: 'var(--border-hairline)',
-        padding: '0.75rem 1.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 40,
-        boxShadow: 'var(--shadow-sm)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <header className="dole-public-header">
+        <div className="dole-header-brand">
           <img
             src="/dolelogo.png"
             alt="Department of Labor and Employment Logo"
-            className="dole-logo-img"
-            style={{ width: '48px', height: '48px', display: 'block' }}
+            className="dole-logo-img dole-header-logo"
           />
-          <div>
-            <div style={{
-              fontSize: '0.75rem',
-              fontWeight: 800,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'var(--dole-blue)',
-            }}>
+          <div className="dole-header-info">
+            <div className="dole-header-rep">
               Republic of the Philippines · DOLE
             </div>
-            <h1 style={{ fontSize: '1.2rem', color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
+            <h1 className="dole-header-title">
               {title || 'Client Transaction Monitoring System'}
             </h1>
             {subtitle && (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
+              <p className="dole-header-subtitle">
                 {subtitle}
               </p>
             )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="dole-header-actions">
           {setLang && (
             <button
               onClick={() => setLang(lang === 'en' ? 'fil' : 'en')}
               className="btn btn-outline btn-sm"
-              style={{ fontWeight: 600, minHeight: '36px' }}
+              style={{ fontWeight: 600 }}
+              title={lang === 'en' ? 'Switch to Filipino' : 'Switch to English'}
             >
-              🌐 {lang === 'en' ? 'Filipino' : 'English'}
+              <span>🌐</span>
+              <span className="lang-text-desktop">{lang === 'en' ? 'Filipino' : 'English'}</span>
+              <span className="lang-text-mobile">{lang === 'en' ? 'FIL' : 'ENG'}</span>
             </button>
           )}
-          <Link to="/staff/login" className="btn btn-outline btn-sm" style={{ minHeight: '36px' }}>
-            Staff Portal
+          <Link to="/staff/login" className="btn btn-outline btn-sm" title="Go to Staff Portal">
+            <span className="staff-text-desktop">Staff Portal</span>
+            <span className="staff-text-mobile">Staff</span>
           </Link>
         </div>
       </header>

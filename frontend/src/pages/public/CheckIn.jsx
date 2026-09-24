@@ -18,6 +18,7 @@ export default function CheckIn() {
 
   const [serviceId, setServiceId] = useState('');
   const [clientName, setClientName] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [isPriority, setIsPriority] = useState(false);
 
   useEffect(() => {
@@ -165,14 +166,89 @@ export default function CheckIn() {
             </div>
 
             <div style={{ marginBottom: '1.25rem' }}>
-              <label htmlFor="client-name">{t.name_label}</label>
-              <input
-                id="client-name"
-                type="text"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder={t.name_placeholder}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                <label htmlFor="client-name" style={{ margin: 0 }}>
+                  {t.name_label}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isAnonymous) {
+                      setIsAnonymous(false);
+                      setClientName('');
+                    } else {
+                      setIsAnonymous(true);
+                      setClientName('Anonymous');
+                    }
+                  }}
+                  className="btn btn-sm"
+                  style={{
+                    minHeight: '28px',
+                    padding: '0.15rem 0.65rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    borderRadius: '20px',
+                    backgroundColor: isAnonymous ? 'var(--dole-blue)' : '#f1f5f9',
+                    color: isAnonymous ? '#ffffff' : 'var(--text-secondary)',
+                    border: isAnonymous ? '1px solid var(--dole-blue)' : '1px solid #cbd5e1',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  title={isAnonymous ? 'Click to input custom name' : 'Click to register anonymously'}
+                >
+                  {isAnonymous ? (t.anonymous_active || '✓ Anonymous') : (t.anonymous_btn || '👤 Anonymous')}
+                </button>
+              </div>
+
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="client-name"
+                  type="text"
+                  value={clientName}
+                  onChange={(e) => {
+                    setClientName(e.target.value);
+                    if (e.target.value.trim().toLowerCase() === 'anonymous') {
+                      setIsAnonymous(true);
+                    } else if (isAnonymous && e.target.value.trim().toLowerCase() !== 'anonymous') {
+                      setIsAnonymous(false);
+                    }
+                  }}
+                  placeholder={isAnonymous ? 'Anonymous' : t.name_placeholder}
+                  style={{
+                    backgroundColor: isAnonymous ? 'rgba(3, 5, 186, 0.04)' : '#ffffff',
+                    borderColor: isAnonymous ? 'var(--dole-blue)' : undefined,
+                    fontWeight: isAnonymous ? 700 : 400,
+                    color: isAnonymous ? 'var(--dole-blue)' : undefined,
+                  }}
+                />
+                {isAnonymous && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAnonymous(false);
+                      setClientName('');
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      padding: '4px',
+                    }}
+                    title="Clear anonymous"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                {t.anonymous_note}
+              </p>
             </div>
 
             <div style={{

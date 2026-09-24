@@ -31,6 +31,10 @@ export const translations = {
     please_look_for: "Please look for",
     no_active_serving: "Counters are currently preparing...",
     waiting_empty: "No clients currently waiting.",
+    stay_anonymous: "Stay Anonymous",
+    anonymous_btn: "👤 Anonymous",
+    anonymous_active: "✓ Anonymous",
+    anonymous_note: "Your identity will be kept private and confidential.",
     switch_lang: "Filipino",
   },
   fil: {
@@ -65,6 +69,10 @@ export const translations = {
     please_look_for: "Mangyaring hanapin si",
     no_active_serving: "Kasalukuyang naghahanda ang mga counter...",
     waiting_empty: "Walang kliyenteng naghihintay.",
+    stay_anonymous: "Manatiling Anonimo",
+    anonymous_btn: "👤 Anonimo",
+    anonymous_active: "✓ Anonimo",
+    anonymous_note: "Ang iyong pagkakakilanlan ay mananatiling lihim at pribado.",
     switch_lang: "English",
   },
 };
