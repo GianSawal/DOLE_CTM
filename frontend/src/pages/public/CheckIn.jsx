@@ -20,6 +20,8 @@ export default function CheckIn() {
   const [clientName, setClientName] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isPriority, setIsPriority] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsAgreedCheckbox, setTermsAgreedCheckbox] = useState(false);
 
   useEffect(() => {
     async function fetchOffice() {
@@ -104,188 +106,302 @@ export default function CheckIn() {
         justifyContent: 'center',
         padding: '1.5rem 1rem',
       }}>
-        <div className="card" style={{ width: '100%', maxWidth: '520px', padding: '2rem' }}>
-          <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-            <img
-              src="/dolelogo.png"
-              alt="DOLE Logo"
-              className="dole-logo-img"
-              style={{ width: '64px', height: '64px', margin: '0 auto 0.75rem', display: 'block' }}
-            />
-            <span className="badge badge-serving" style={{ marginBottom: '0.5rem' }}>
-              🏛️ {officeData?.office?.code} Check-in
-            </span>
-            <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              {t.checkin_title}
-            </h2>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-              {t.checkin_subtitle}
-            </p>
-          </div>
-
-          {error && (
-            <div style={{
-              backgroundColor: 'var(--dole-red-light)',
-              border: '1px solid #fecaca',
-              color: 'var(--dole-red)',
-              borderRadius: 'var(--radius-md)',
-              padding: '0.75rem 1rem',
-              marginBottom: '1.25rem',
-              fontSize: '0.9rem',
-            }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label>{t.office_label}</label>
-              <input
-                type="text"
-                disabled
-                value={officeData?.office?.name || ''}
-                style={{ backgroundColor: '#f8fafc', color: '#475569', cursor: 'not-allowed' }}
+        {!termsAccepted ? (
+          <div className="card" style={{ width: '100%', maxWidth: '560px', padding: '2rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <img
+                src="/dolelogo.png"
+                alt="DOLE Official Seal"
+                className="dole-logo-img"
+                style={{ width: '64px', height: '64px', margin: '0 auto 0.75rem', display: 'block' }}
               />
-            </div>
-
-            <div style={{ marginBottom: '1.25rem' }}>
-              <label htmlFor="service-select">{t.service_label} *</label>
-              <select
-                id="service-select"
-                required
-                value={serviceId}
-                onChange={(e) => setServiceId(e.target.value)}
-              >
-                <option value="">{t.select_service}</option>
-                {officeData?.services?.map((svc) => (
-                  <option key={svc.id} value={svc.id}>
-                    {svc.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-                <label htmlFor="client-name" style={{ margin: 0 }}>
-                  {t.name_label}
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isAnonymous) {
-                      setIsAnonymous(false);
-                      setClientName('');
-                    } else {
-                      setIsAnonymous(true);
-                      setClientName('Anonymous');
-                    }
-                  }}
-                  className="btn btn-sm"
-                  style={{
-                    minHeight: '28px',
-                    padding: '0.15rem 0.65rem',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    borderRadius: '20px',
-                    backgroundColor: isAnonymous ? 'var(--dole-blue)' : '#f1f5f9',
-                    color: isAnonymous ? '#ffffff' : 'var(--text-secondary)',
-                    border: isAnonymous ? '1px solid var(--dole-blue)' : '1px solid #cbd5e1',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title={isAnonymous ? 'Click to input custom name' : 'Click to register anonymously'}
-                >
-                  {isAnonymous ? (t.anonymous_active || '✓ Anonymous') : (t.anonymous_btn || '👤 Anonymous')}
-                </button>
-              </div>
-
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="client-name"
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => {
-                    setClientName(e.target.value);
-                    if (e.target.value.trim().toLowerCase() === 'anonymous') {
-                      setIsAnonymous(true);
-                    } else if (isAnonymous && e.target.value.trim().toLowerCase() !== 'anonymous') {
-                      setIsAnonymous(false);
-                    }
-                  }}
-                  placeholder={isAnonymous ? 'Anonymous' : t.name_placeholder}
-                  style={{
-                    backgroundColor: isAnonymous ? 'rgba(3, 5, 186, 0.04)' : '#ffffff',
-                    borderColor: isAnonymous ? 'var(--dole-blue)' : undefined,
-                    fontWeight: isAnonymous ? 700 : 400,
-                    color: isAnonymous ? 'var(--dole-blue)' : undefined,
-                  }}
-                />
-                {isAnonymous && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAnonymous(false);
-                      setClientName('');
-                    }}
-                    style={{
-                      position: 'absolute',
-                      right: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      border: 'none',
-                      backgroundColor: 'transparent',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      padding: '4px',
-                    }}
-                    title="Clear anonymous"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-                {t.anonymous_note}
+              <span className="badge badge-serving" style={{ marginBottom: '0.5rem' }}>
+                🏛️ {officeData?.office?.name || 'DOLE Office'}
+              </span>
+              <h2 style={{ fontSize: '1.45rem', color: 'var(--text-primary)', marginBottom: '0.35rem', fontWeight: 800 }}>
+                {t.terms_title}
+              </h2>
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+                {t.terms_subtitle}
               </p>
             </div>
 
             <div style={{
-              backgroundColor: isPriority ? 'var(--dole-gold-light)' : '#f8fafc',
-              border: isPriority ? '1px solid #fde68a' : '1px solid var(--border-color)',
+              backgroundColor: '#f8fafc',
+              border: '1px solid var(--border-color)',
               borderRadius: 'var(--radius-md)',
-              padding: '1rem',
-              marginBottom: '1.75rem',
-              transition: 'all 0.2s ease',
+              padding: '1.25rem',
+              maxHeight: '340px',
+              overflowY: 'auto',
+              marginBottom: '1.5rem',
+              fontSize: '0.88rem',
+              lineHeight: 1.55,
+              color: 'var(--text-secondary)',
             }}>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer', margin: 0 }}>
+              <p style={{ fontWeight: 700, color: 'var(--dole-blue)', marginBottom: '1rem', fontSize: '0.92rem' }}>
+                {t.terms_intro}
+              </p>
+
+              <div style={{ marginBottom: '1rem', paddingBottom: '0.85rem', borderBottom: '1px solid #e2e8f0' }}>
+                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.25rem', fontSize: '0.92rem' }}>
+                  {t.terms_dpa_title}
+                </strong>
+                <p style={{ margin: 0 }}>
+                  {t.terms_dpa_desc}
+                </p>
+              </div>
+
+              <div style={{ marginBottom: '1rem', paddingBottom: '0.85rem', borderBottom: '1px solid #e2e8f0' }}>
+                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.25rem', fontSize: '0.92rem' }}>
+                  {t.terms_eodb_title}
+                </strong>
+                <p style={{ margin: 0 }}>
+                  {t.terms_eodb_desc}
+                </p>
+              </div>
+
+              <div>
+                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.25rem', fontSize: '0.92rem' }}>
+                  {t.terms_calling_title}
+                </strong>
+                <p style={{ margin: 0 }}>
+                  {t.terms_calling_desc}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem',
+                cursor: 'pointer',
+                margin: 0,
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+              }}>
                 <input
                   type="checkbox"
-                  checked={isPriority}
-                  onChange={(e) => setIsPriority(e.target.checked)}
-                  style={{ width: '22px', height: '22px', minHeight: 'unset', marginTop: '2px', accentColor: 'var(--dole-gold-dark)' }}
+                  checked={termsAgreedCheckbox}
+                  onChange={(e) => setTermsAgreedCheckbox(e.target.checked)}
+                  style={{ width: '22px', height: '22px', minHeight: 'unset', marginTop: '2px', accentColor: 'var(--dole-blue)' }}
                 />
-                <div>
-                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-                    {t.priority_label}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    {t.priority_subtext}
-                  </div>
-                </div>
+                <span>
+                  {t.terms_agree_checkbox}
+                </span>
               </label>
             </div>
 
             <button
-              type="submit"
-              disabled={submitting}
+              type="button"
+              onClick={() => {
+                if (termsAgreedCheckbox) {
+                  setTermsAccepted(true);
+                }
+              }}
+              disabled={!termsAgreedCheckbox}
               className="btn btn-primary btn-lg w-full"
+              style={{ fontWeight: 800, minHeight: '52px' }}
             >
-              {submitting ? t.submitting : t.get_ticket_btn}
+              {t.proceed_to_registration} ➔
             </button>
-          </form>
-        </div>
+          </div>
+        ) : (
+          <div className="card" style={{ width: '100%', maxWidth: '520px', padding: '2rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+              <img
+                src="/dolelogo.png"
+                alt="DOLE Logo"
+                className="dole-logo-img"
+                style={{ width: '64px', height: '64px', margin: '0 auto 0.75rem', display: 'block' }}
+              />
+              <span className="badge badge-serving" style={{ marginBottom: '0.5rem' }}>
+                🏛️ {officeData?.office?.code} Check-in
+              </span>
+              <h2 style={{ fontSize: '1.5rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                {t.checkin_title}
+              </h2>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                {t.checkin_subtitle}
+              </p>
+            </div>
+
+            {error && (
+              <div style={{
+                backgroundColor: 'var(--dole-red-light)',
+                border: '1px solid #fecaca',
+                color: 'var(--dole-red)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.75rem 1rem',
+                marginBottom: '1.25rem',
+                fontSize: '0.9rem',
+              }}>
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label>{t.office_label}</label>
+                <input
+                  type="text"
+                  disabled
+                  value={officeData?.office?.name || ''}
+                  style={{ backgroundColor: '#f8fafc', color: '#475569', cursor: 'not-allowed' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label htmlFor="service-select">{t.service_label} *</label>
+                <select
+                  id="service-select"
+                  required
+                  value={serviceId}
+                  onChange={(e) => setServiceId(e.target.value)}
+                >
+                  <option value="">{t.select_service}</option>
+                  {officeData?.services?.map((svc) => (
+                    <option key={svc.id} value={svc.id}>
+                      {svc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+                  <label htmlFor="client-name" style={{ margin: 0 }}>
+                    {t.name_label}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isAnonymous) {
+                        setIsAnonymous(false);
+                        setClientName('');
+                      } else {
+                        setIsAnonymous(true);
+                        setClientName('Anonymous');
+                      }
+                    }}
+                    className="btn btn-sm"
+                    style={{
+                      minHeight: '28px',
+                      padding: '0.15rem 0.65rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      borderRadius: '20px',
+                      backgroundColor: isAnonymous ? 'var(--dole-blue)' : '#f1f5f9',
+                      color: isAnonymous ? '#ffffff' : 'var(--text-secondary)',
+                      border: isAnonymous ? '1px solid var(--dole-blue)' : '1px solid #cbd5e1',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title={isAnonymous ? 'Click to input custom name' : 'Click to register anonymously'}
+                  >
+                    {isAnonymous ? (t.anonymous_active || '✓ Anonymous') : (t.anonymous_btn || '👤 Anonymous')}
+                  </button>
+                </div>
+
+                <div style={{ position: 'relative' }}>
+                  <input
+                    id="client-name"
+                    type="text"
+                    value={clientName}
+                    onChange={(e) => {
+                      setClientName(e.target.value);
+                      if (e.target.value.trim().toLowerCase() === 'anonymous') {
+                        setIsAnonymous(true);
+                      } else if (isAnonymous && e.target.value.trim().toLowerCase() !== 'anonymous') {
+                        setIsAnonymous(false);
+                      }
+                    }}
+                    placeholder={isAnonymous ? 'Anonymous' : t.name_placeholder}
+                    style={{
+                      backgroundColor: isAnonymous ? 'rgba(3, 5, 186, 0.04)' : '#ffffff',
+                      borderColor: isAnonymous ? 'var(--dole-blue)' : undefined,
+                      fontWeight: isAnonymous ? 700 : 400,
+                      color: isAnonymous ? 'var(--dole-blue)' : undefined,
+                    }}
+                  />
+                  {isAnonymous && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAnonymous(false);
+                        setClientName('');
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        border: 'none',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        padding: '4px',
+                      }}
+                      title="Clear anonymous"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                  {t.anonymous_note}
+                </p>
+              </div>
+
+              <div style={{
+                backgroundColor: isPriority ? 'var(--dole-gold-light)' : '#f8fafc',
+                border: isPriority ? '1px solid #fde68a' : '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem',
+                marginBottom: '1.75rem',
+                transition: 'all 0.2s ease',
+              }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', cursor: 'pointer', margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={isPriority}
+                    onChange={(e) => setIsPriority(e.target.checked)}
+                    style={{ width: '22px', height: '22px', minHeight: 'unset', marginTop: '2px', accentColor: 'var(--dole-gold-dark)' }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                      {t.priority_label}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      {t.priority_subtext}
+                    </div>
+                  </div>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="btn btn-primary btn-lg w-full"
+              >
+                {submitting ? t.submitting : t.get_ticket_btn}
+              </button>
+            </form>
+
+            <div style={{ marginTop: '1.5rem', textAlign: 'center', borderTop: 'var(--border-hairline)', paddingTop: '1rem' }}>
+              <button
+                type="button"
+                onClick={() => setTermsAccepted(false)}
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'underline', border: 'none', background: 'transparent', cursor: 'pointer' }}
+              >
+                📄 {t.view_terms_btn}
+              </button>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
