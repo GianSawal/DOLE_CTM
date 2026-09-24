@@ -72,7 +72,14 @@ def create_transaction(office, service, client_name=None, is_priority=False, sou
         return tx
 
 
-def call_next_transaction(office, counter):
+def assign_personnel_to_transaction(tx, personnel):
+    """Staff assigns a designated officer / personnel to a transaction."""
+    tx.assigned_personnel = (personnel or "").strip()
+    tx.save(update_fields=['assigned_personnel'])
+    return tx
+
+
+def call_next_transaction(office, counter, personnel=None):
     """
     Finds the next waiting client: priority clients first, then FIFO by checked_in_at.
     Uses select_for_update(skip_locked=True) to prevent concurrency race conditions.
@@ -87,24 +94,36 @@ def call_next_transaction(office, counter):
         if not tx:
             return None
 
+        if personnel:
+            tx.assigned_personnel = str(personnel).strip()
+
+        if not tx.assigned_personnel:
+            raise ValueError(f"Cannot call queue #{tx.queue_no}: A personnel must be assigned before calling.")
+
         now = timezone.now()
         tx.status = CtmsTransaction.STATUS_SERVING
         tx.counter = counter
         tx.called_at = now
-        tx.save(update_fields=['status', 'counter', 'called_at'])
+        tx.save(update_fields=['status', 'counter', 'called_at', 'assigned_personnel'])
         return tx
 
 
-def call_specific_transaction(tx, counter):
+def call_specific_transaction(tx, counter, personnel=None):
     """Staff calls or recalls a specific transaction."""
     if tx.status not in (CtmsTransaction.STATUS_WAITING, CtmsTransaction.STATUS_SERVING):
         raise ValueError(f"Cannot call a transaction with status '{tx.status}'.")
+
+    if personnel:
+        tx.assigned_personnel = str(personnel).strip()
+
+    if not tx.assigned_personnel:
+        raise ValueError(f"Cannot call queue #{tx.queue_no}: A personnel must be assigned before calling.")
 
     now = timezone.now()
     tx.status = CtmsTransaction.STATUS_SERVING
     tx.counter = counter
     tx.called_at = now
-    tx.save(update_fields=['status', 'counter', 'called_at'])
+    tx.save(update_fields=['status', 'counter', 'called_at', 'assigned_personnel'])
     return tx
 
 

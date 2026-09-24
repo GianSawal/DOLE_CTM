@@ -14,9 +14,14 @@ export const staffApi = {
     return apiRequest(`/staff/queue/?${params.toString()}`);
   },
 
-  callNext: (officeId, counterId) => apiRequest('/staff/call-next/', {
+  callNext: (officeId, counterId, personnel = null) => apiRequest('/staff/call-next/', {
     method: 'POST',
-    body: JSON.stringify({ office: officeId, counter: counterId }),
+    body: JSON.stringify({ office: officeId, counter: counterId, personnel }),
+  }),
+
+  assignPersonnel: (id, personnel) => apiRequest(`/staff/transactions/${id}/assign/`, {
+    method: 'POST',
+    body: JSON.stringify({ personnel }),
   }),
 
   createWalkin: (data) => apiRequest('/staff/transactions/walkin/', {

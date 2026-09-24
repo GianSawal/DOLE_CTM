@@ -145,6 +145,7 @@ class CtmsTransaction(models.Model):
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_WAITING, db_index=True)
     counter = models.ForeignKey(CtmsCounter, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default=SOURCE_QR)
+    assigned_personnel = models.CharField(max_length=200, null=True, blank=True, help_text="Designated personnel / officer")
     
     checked_in_at = models.DateTimeField(db_index=True)
     called_at = models.DateTimeField(null=True, blank=True)

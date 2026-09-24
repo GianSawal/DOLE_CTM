@@ -229,6 +229,7 @@ class PublicDisplayBoardView(APIView):
                 "called_at": s.called_at.isoformat() if s.called_at else None,
                 "service_name": service_name,
                 "service_description": get_service_description(service_name),
+                "assigned_personnel": s.assigned_personnel or "",
             })
 
         # Next waiting queue numbers (priority first, then FIFO) - numbers only, never names!
@@ -249,6 +250,7 @@ class PublicDisplayBoardView(APIView):
             "latest_called_at": latest_called_at,
             "latest_called_queue_no": first_serving.queue_no if first_serving else None,
             "latest_called_counter": (first_serving.counter.name if first_serving.counter else "Counter") if first_serving else None,
+            "latest_called_personnel": (first_serving.assigned_personnel or "") if first_serving else None,
             "updated_at": timezone.now().isoformat(),
         })
 
@@ -358,11 +360,14 @@ class StaffCallNextView(APIView):
             if not counter:
                 counter, _ = CtmsCounter.objects.get_or_create(office=office, name="Window 1", defaults={'is_active': True})
 
-        tx = services.call_next_transaction(office=office, counter=counter)
-        if not tx:
-            return Response({"detail": "No waiting clients in the queue."}, status=status.HTTP_204_NO_CONTENT)
-
-        return Response(StaffTransactionSerializer(tx).data)
+        personnel = request.data.get('personnel') or request.data.get('assigned_personnel')
+        try:
+            tx = services.call_next_transaction(office=office, counter=counter, personnel=personnel)
+            if not tx:
+                return Response({"detail": "No waiting clients in the queue."}, status=status.HTTP_204_NO_CONTENT)
+            return Response(StaffTransactionSerializer(tx).data)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class StaffTransactionActionView(APIView):
@@ -375,20 +380,28 @@ class StaffTransactionActionView(APIView):
             return Response({"detail": "Forbidden: Not assigned to this office."}, status=status.HTTP_403_FORBIDDEN)
 
         try:
-            if action == 'call':
+            if action == 'assign':
+                personnel = request.data.get('personnel') or request.data.get('assigned_personnel')
+                if not personnel or not str(personnel).strip():
+                    return Response({"detail": "Personnel name cannot be empty."}, status=status.HTTP_400_BAD_REQUEST)
+                tx = services.assign_personnel_to_transaction(tx, str(personnel).strip())
+
+            elif action == 'call':
                 counter_id = request.data.get('counter')
+                personnel = request.data.get('personnel') or request.data.get('assigned_personnel')
                 if counter_id:
                     counter = get_object_or_404(CtmsCounter, pk=counter_id, office=tx.office, is_active=True)
                 else:
                     counter = CtmsCounter.objects.filter(office=tx.office, is_active=True).first()
                     if not counter:
                         counter, _ = CtmsCounter.objects.get_or_create(office=tx.office, name="Window 1", defaults={'is_active': True})
-                tx = services.call_specific_transaction(tx, counter)
+                tx = services.call_specific_transaction(tx, counter, personnel=personnel)
 
             elif action == 'recall':
                 if not tx.counter:
                     return Response({"detail": "Transaction is not assigned to a counter."}, status=status.HTTP_400_BAD_REQUEST)
-                tx = services.call_specific_transaction(tx, tx.counter)
+                personnel = request.data.get('personnel') or request.data.get('assigned_personnel')
+                tx = services.call_specific_transaction(tx, tx.counter, personnel=personnel)
 
             elif action == 'done':
                 tx = services.mark_done(tx, request.user)

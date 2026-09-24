@@ -28,6 +28,19 @@ export default function StaffQueue() {
   // Slip modal state
   const [printedTx, setPrintedTx] = useState(null);
 
+  // Personnel assignment modal state
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignTx, setAssignTx] = useState(null);
+  const [assignPersonnelName, setAssignPersonnelName] = useState('');
+  const [recentPersonnel, setRecentPersonnel] = useState(() => {
+    try {
+      const saved = localStorage.getItem('ctms_recent_personnel');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Strict RBAC: Ensure selectedOffice is ALWAYS an office assigned to this user
   useEffect(() => {
     if (user?.assigned_offices?.length > 0) {
@@ -97,12 +110,65 @@ export default function StaffQueue() {
     }
   }, [showWalkinModal, selectedOffice]);
 
+  // Next waiting client according to priority ordering
+  const nextWaitingClient = queueData.waiting && queueData.waiting.length > 0
+    ? [...queueData.waiting].sort((a, b) => {
+        if (a.is_priority !== b.is_priority) return a.is_priority ? -1 : 1;
+        return new Date(a.checked_in_at) - new Date(b.checked_in_at);
+      })[0]
+    : null;
+
+  const isNextClientAssigned = Boolean(nextWaitingClient?.assigned_personnel && nextWaitingClient.assigned_personnel.trim());
+
+  const handleOpenAssignModal = (tx) => {
+    setAssignTx(tx);
+    const defaultName = tx?.assigned_personnel || (
+      user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : (user?.username || '')
+    );
+    setAssignPersonnelName(defaultName);
+    setShowAssignModal(true);
+  };
+
+  const handleAssignSubmit = async (e) => {
+    e.preventDefault();
+    if (!assignTx || !assignPersonnelName.trim()) return;
+    try {
+      setActionLoading(true);
+      setError('');
+      const cleanName = assignPersonnelName.trim();
+      await staffApi.assignPersonnel(assignTx.id, cleanName);
+
+      // Save to recent personnel list in localStorage
+      const updatedRecent = Array.from(new Set([cleanName, ...recentPersonnel])).slice(0, 8);
+      setRecentPersonnel(updatedRecent);
+      localStorage.setItem('ctms_recent_personnel', JSON.stringify(updatedRecent));
+
+      setShowAssignModal(false);
+      setAssignTx(null);
+      await fetchQueue();
+    } catch (err) {
+      setError(err.message || 'Failed to assign personnel.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Actions
   const handleCallNext = async () => {
     if (!selectedOffice) {
       setError('Please select an Office first.');
       return;
     }
+    if (!nextWaitingClient) {
+      setError('No waiting clients currently in the queue.');
+      return;
+    }
+    if (!isNextClientAssigned) {
+      setError(`Cannot call next client (${nextWaitingClient.queue_no}): Help desk officer must assign a personnel first.`);
+      handleOpenAssignModal(nextWaitingClient);
+      return;
+    }
+
     const counterToUse = selectedCounter || (queueData.counters?.length > 0 ? String(queueData.counters[0].id) : null);
     if (!counterToUse) {
       setError('No window counters available for this office. Please set up a counter first.');
@@ -112,10 +178,11 @@ export default function StaffQueue() {
       setSelectedCounter(counterToUse);
       localStorage.setItem('ctms_staff_counter', counterToUse);
     }
+
     try {
       setActionLoading(true);
       setError('');
-      const called = await staffApi.callNext(selectedOffice, counterToUse);
+      const called = await staffApi.callNext(selectedOffice, counterToUse, nextWaitingClient.assigned_personnel);
       if (!called) {
         setError('No waiting clients currently in the queue.');
       } else {
@@ -123,6 +190,7 @@ export default function StaffQueue() {
           officeId: selectedOffice,
           queueNo: called.queue_no,
           counter: called.counter_name,
+          personnel: called.assigned_personnel || nextWaitingClient.assigned_personnel,
           action: 'call_next',
         });
         await fetchQueue();
@@ -134,7 +202,13 @@ export default function StaffQueue() {
     }
   };
 
-  const handleCallSpecific = async (txId) => {
+  const handleCallSpecific = async (tx) => {
+    if (!tx.assigned_personnel || !tx.assigned_personnel.trim()) {
+      setError(`Cannot call Queue ${tx.queue_no}: Help desk officer must assign a personnel first.`);
+      handleOpenAssignModal(tx);
+      return;
+    }
+
     const counterToUse = selectedCounter || (queueData.counters?.length > 0 ? String(queueData.counters[0].id) : null);
     if (!counterToUse) {
       setError('No window counters available. Please select or add a counter.');
@@ -144,7 +218,7 @@ export default function StaffQueue() {
       setSelectedCounter(counterToUse);
       localStorage.setItem('ctms_staff_counter', counterToUse);
     }
-    await handleAction(txId, 'call', { counter: counterToUse });
+    await handleAction(tx.id, 'call', { counter: counterToUse, personnel: tx.assigned_personnel });
   };
 
   const handleAction = async (txId, action, payload = {}) => {
@@ -158,6 +232,7 @@ export default function StaffQueue() {
           txId,
           queueNo: res?.queue_no,
           counter: res?.counter_name,
+          personnel: res?.assigned_personnel || payload.personnel || '',
           action,
         });
       }
@@ -255,7 +330,7 @@ export default function StaffQueue() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button
                 onClick={() => setShowWalkinModal(true)}
                 className="btn btn-outline"
@@ -264,11 +339,47 @@ export default function StaffQueue() {
                 ➕ Walk-in Registration
               </button>
 
+              {nextWaitingClient && !isNextClientAssigned && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenAssignModal(nextWaitingClient)}
+                  className="btn btn-sm"
+                  style={{
+                    minHeight: '46px',
+                    backgroundColor: '#fffbeb',
+                    color: '#92400e',
+                    border: '2px solid #f59e0b',
+                    fontWeight: 700,
+                    padding: '0.5rem 0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                  title="Assign personnel to enable Call Next Client"
+                >
+                  <span>⚠️ Next: {nextWaitingClient.queue_no}</span>
+                  <span style={{ textDecoration: 'underline' }}>Assign Personnel</span>
+                </button>
+              )}
+
               <button
                 onClick={handleCallNext}
-                disabled={actionLoading}
+                disabled={actionLoading || !nextWaitingClient || !isNextClientAssigned}
                 className="btn btn-primary btn-lg"
-                style={{ minHeight: '46px', fontWeight: 800, padding: '0.75rem 1.75rem' }}
+                style={{
+                  minHeight: '46px',
+                  fontWeight: 800,
+                  padding: '0.75rem 1.75rem',
+                  opacity: (!nextWaitingClient || !isNextClientAssigned) ? 0.45 : 1,
+                  cursor: (!nextWaitingClient || !isNextClientAssigned) ? 'not-allowed' : 'pointer',
+                }}
+                title={
+                  !nextWaitingClient
+                    ? 'No waiting clients in queue'
+                    : !isNextClientAssigned
+                    ? `Assign a personnel to ticket ${nextWaitingClient.queue_no} before calling next client`
+                    : `Call next client (${nextWaitingClient.queue_no})`
+                }
               >
                 {actionLoading ? 'Calling...' : '📢 Call Next Client'}
               </button>
@@ -338,6 +449,40 @@ export default function StaffQueue() {
                       </div>
                     </div>
 
+                    {/* Assigned Personnel Badge / Edit */}
+                    <div style={{
+                      marginBottom: '0.75rem',
+                      padding: '0.45rem 0.8rem',
+                      borderRadius: '6px',
+                      backgroundColor: tx.assigned_personnel ? 'rgba(3, 5, 186, 0.06)' : '#fffbeb',
+                      border: tx.assigned_personnel ? '1px solid rgba(3, 5, 186, 0.2)' : '1.5px solid #f59e0b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.88rem' }}>
+                        <span>👤</span>
+                        {tx.assigned_personnel ? (
+                          <span style={{ color: 'var(--dole-blue)' }}>
+                            Assigned Personnel: <strong style={{ color: '#0f172a' }}>{tx.assigned_personnel}</strong>
+                          </span>
+                        ) : (
+                          <span style={{ color: '#b45309', fontWeight: 700 }}>
+                            ⚠️ No personnel assigned
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAssignModal(tx)}
+                        className="btn btn-ghost btn-xs"
+                        style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--dole-blue)', textDecoration: 'underline' }}
+                      >
+                        {tx.assigned_personnel ? 'Change' : 'Assign Now'}
+                      </button>
+                    </div>
+
                     {/* Action Buttons */}
                     <div style={{
                       display: 'flex',
@@ -356,9 +501,21 @@ export default function StaffQueue() {
                       </button>
 
                       <button
-                        onClick={() => handleAction(tx.id, 'recall')}
-                        disabled={actionLoading}
+                        onClick={() => {
+                          if (!tx.assigned_personnel || !tx.assigned_personnel.trim()) {
+                            setError(`Cannot recall Queue ${tx.queue_no}: Help desk officer must assign a personnel first.`);
+                            handleOpenAssignModal(tx);
+                            return;
+                          }
+                          handleAction(tx.id, 'recall', { personnel: tx.assigned_personnel });
+                        }}
+                        disabled={actionLoading || !tx.assigned_personnel}
                         className="btn btn-outline btn-sm"
+                        style={{
+                          opacity: !tx.assigned_personnel ? 0.45 : 1,
+                          cursor: !tx.assigned_personnel ? 'not-allowed' : 'pointer',
+                        }}
+                        title={!tx.assigned_personnel ? 'Assign a personnel before recalling' : 'Recall client'}
                       >
                         🔄 Recall
                       </button>
@@ -422,7 +579,7 @@ export default function StaffQueue() {
                     padding: '1rem',
                     borderLeft: tx.is_priority ? '5px solid var(--dole-gold)' : '5px solid #cbd5e1',
                   }}>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
                       <div className="flex items-center gap-2">
                         <span className="mono" style={{ fontSize: '1.4rem', fontWeight: 800 }}>
                           {tx.queue_no}
@@ -431,14 +588,69 @@ export default function StaffQueue() {
                           <span className="badge badge-priority">Priority</span>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleCallSpecific(tx.id)}
-                        disabled={actionLoading}
-                        className="btn btn-primary btn-sm"
-                        style={{ minHeight: '32px' }}
-                      >
-                        Call
-                      </button>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        {tx.assigned_personnel ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <span style={{
+                              fontSize: '0.78rem',
+                              backgroundColor: 'rgba(3, 5, 186, 0.08)',
+                              border: '1px solid rgba(3, 5, 186, 0.25)',
+                              color: 'var(--dole-blue)',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '4px',
+                              fontWeight: 700,
+                              maxWidth: '135px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }} title={`Assigned: ${tx.assigned_personnel}`}>
+                              👤 {tx.assigned_personnel}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAssignModal(tx)}
+                              className="btn btn-ghost btn-xs"
+                              title="Edit assigned personnel"
+                              style={{ padding: '0.1rem 0.3rem', fontSize: '0.75rem' }}
+                            >
+                              ✏️
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAssignModal(tx)}
+                            className="btn btn-sm"
+                            style={{
+                              backgroundColor: '#fffbeb',
+                              color: '#b45309',
+                              border: '1px solid #f59e0b',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              padding: '0.25rem 0.6rem',
+                            }}
+                            title="Assign personnel to enable Call"
+                          >
+                            👤 Assign
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => handleCallSpecific(tx)}
+                          disabled={actionLoading || !tx.assigned_personnel}
+                          className="btn btn-primary btn-sm"
+                          style={{
+                            minHeight: '32px',
+                            opacity: !tx.assigned_personnel ? 0.45 : 1,
+                            cursor: !tx.assigned_personnel ? 'not-allowed' : 'pointer',
+                          }}
+                          title={!tx.assigned_personnel ? 'Help desk officer must assign a personnel to this queue number before calling' : 'Call this client'}
+                        >
+                          Call
+                        </button>
+                      </div>
                     </div>
 
                     <div style={{ fontSize: '0.85rem', marginTop: '0.4rem', color: 'var(--text-secondary)' }}>
@@ -530,6 +742,86 @@ export default function StaffQueue() {
         title="Queue Slip"
       >
         <PrintSlip transaction={printedTx} onClose={() => setPrintedTx(null)} />
+      </Modal>
+
+      {/* Assign Personnel Modal */}
+      <Modal
+        isOpen={showAssignModal}
+        onClose={() => {
+          setShowAssignModal(false);
+          setAssignTx(null);
+        }}
+        title={`Assign Personnel · Queue #${assignTx?.queue_no || ''}`}
+      >
+        <form onSubmit={handleAssignSubmit}>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+            Designate the officer or staff handling this client (<strong>{assignTx?.service_name || 'Frontline Service'}</strong>).
+            This name will be announced on the office audio system and displayed under <strong>NOW SERVING</strong> on the TV screen.
+          </p>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={{ fontWeight: 700, marginBottom: '0.4rem', display: 'block' }}>
+              Assigned Personnel Name *
+            </label>
+            <input
+              type="text"
+              required
+              autoFocus
+              value={assignPersonnelName}
+              onChange={(e) => setAssignPersonnelName(e.target.value)}
+              placeholder="e.g. Engr. Juan Dela Cruz, Atty. Santos, Ms. Maria Reyes"
+              style={{ width: '100%', padding: '0.65rem 0.75rem', fontSize: '1rem' }}
+            />
+          </div>
+
+          {recentPersonnel.length > 0 && (
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.35rem', display: 'block' }}>
+                Quick select recently assigned:
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {recentPersonnel.map((name, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setAssignPersonnelName(name)}
+                    className="btn btn-outline btn-xs"
+                    style={{
+                      fontSize: '0.8rem',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '12px',
+                      backgroundColor: assignPersonnelName === name ? 'rgba(3, 5, 186, 0.1)' : 'transparent',
+                      borderColor: assignPersonnelName === name ? 'var(--dole-blue)' : 'var(--border-color)',
+                    }}
+                  >
+                    👤 {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAssignModal(false);
+                setAssignTx(null);
+              }}
+              className="btn btn-outline"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={actionLoading || !assignPersonnelName.trim()}
+              className="btn btn-primary"
+              style={{ fontWeight: 700 }}
+            >
+              {actionLoading ? 'Saving...' : 'Save Personnel Assignment'}
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

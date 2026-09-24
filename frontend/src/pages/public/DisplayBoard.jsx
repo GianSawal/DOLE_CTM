@@ -4,6 +4,7 @@ import { publicApi } from '../../api/public';
 import { translations } from '../../locales/translations';
 import {
   playAirportChime,
+  announceNowServing,
   getAudioContext,
   unlockAudioContext,
   isAudioUnlocked,
@@ -37,6 +38,10 @@ export default function DisplayBoard() {
   const { officeId } = useParams();
   const [lang, setLang] = useState('en');
   const t = translations[lang];
+  const langRef = useRef(lang);
+  useEffect(() => {
+    langRef.current = lang;
+  }, [lang]);
 
   const [displayData, setDisplayData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +56,7 @@ export default function DisplayBoard() {
   const lastCalledRef = useRef(null);
   const isInitialLoadRef = useRef(true);
 
-  // Global listener for first user interaction (touch, click, key) to unlock Web Audio API
+  // Global listener for first user interaction (touch, click, key) to unlock Web Audio API & TTS
   useEffect(() => {
     const handleUnlock = () => {
       unlockAudioContext().then(unlocked => {
@@ -79,7 +84,13 @@ export default function DisplayBoard() {
     if (nextState) {
       await unlockAudioContext();
       setAudioUnlocked(true);
-      playAirportChime();
+      const firstServing = displayData?.serving?.[0];
+      announceNowServing({
+        queueNo: firstServing?.queue_no || displayData?.next?.[0] || '042',
+        counter: firstServing?.counter || 'Window 1',
+        personnel: firstServing?.assigned_personnel || '',
+        lang: langRef.current,
+      });
     }
   };
 
@@ -113,7 +124,15 @@ export default function DisplayBoard() {
           if (callTimestampChanged || hasNewQueueNumber) {
             lastCalledRef.current = currentLatestCall;
             if (soundEnabled) {
-              playAirportChime();
+              const qNo = data.latest_called_queue_no || data.serving?.[0]?.queue_no;
+              const cnt = data.latest_called_counter || data.serving?.[0]?.counter;
+              const psn = data.latest_called_personnel || data.serving?.[0]?.assigned_personnel;
+              announceNowServing({
+                queueNo: qNo,
+                counter: cnt,
+                personnel: psn,
+                lang: langRef.current,
+              });
             }
           }
           prevServingRef.current = data.serving || [];
@@ -136,7 +155,7 @@ export default function DisplayBoard() {
     // Fast polling: 2500ms
     const interval = setInterval(fetchDisplay, 2500);
 
-    // Cross-tab broadcast listener for instant 0ms chime on same browser/device
+    // Cross-tab broadcast listener for instant 0ms chime and voice announcement
     let bc = null;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
@@ -146,7 +165,12 @@ export default function DisplayBoard() {
           if (event.data?.type === 'QUEUE_CALLED') {
             if (!event.data.officeId || String(event.data.officeId) === String(officeId)) {
               if (soundEnabled) {
-                playAirportChime();
+                announceNowServing({
+                  queueNo: event.data.queueNo,
+                  counter: event.data.counter,
+                  personnel: event.data.personnel,
+                  lang: langRef.current,
+                });
               }
               // Immediately fetch updated display data
               fetchDisplay();
@@ -164,7 +188,12 @@ export default function DisplayBoard() {
           const item = JSON.parse(e.newValue);
           if (!item.officeId || String(item.officeId) === String(officeId)) {
             if (soundEnabled) {
-              playAirportChime();
+              announceNowServing({
+                queueNo: item.queueNo,
+                counter: item.counter,
+                personnel: item.personnel,
+                lang: langRef.current,
+              });
             }
             fetchDisplay();
           }
@@ -215,7 +244,13 @@ export default function DisplayBoard() {
           onClick={async () => {
             await unlockAudioContext();
             setAudioUnlocked(true);
-            playAirportChime();
+            const firstServing = displayData?.serving?.[0];
+            announceNowServing({
+              queueNo: firstServing?.queue_no || displayData?.next?.[0] || '042',
+              counter: firstServing?.counter || 'Window 1',
+              personnel: firstServing?.assigned_personnel || 'Officer on Duty',
+              lang: langRef.current,
+            });
           }}
           style={{
             backgroundColor: 'rgba(217, 119, 6, 0.95)',
@@ -233,7 +268,7 @@ export default function DisplayBoard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: 600 }}>
             <span style={{ fontSize: '1.25rem' }}>🔔</span>
-            <span>Airport Chime is ON: Tap or click anywhere on this screen to activate audio playback for this display.</span>
+            <span>Airport Chime & Voice Announcer is ON: Tap or click anywhere on this screen to activate audio playback for this display.</span>
           </div>
           <button
             className="btn btn-sm"
@@ -285,16 +320,22 @@ export default function DisplayBoard() {
               backgroundColor: soundEnabled ? 'rgba(217, 119, 6, 0.25)' : 'transparent',
               fontWeight: 600,
             }}
-            title={soundEnabled ? 'Click to mute airport chime' : 'Click to enable airport announcement chime'}
+            title={soundEnabled ? 'Click to mute airport chime & voice' : 'Click to enable airport announcement chime & voice'}
           >
-            {soundEnabled ? '🔔 Airport Chime ON' : '🔕 Airport Chime OFF'}
+            {soundEnabled ? '🔔 Chime & Voice ON' : '🔕 Sound OFF'}
           </button>
           {soundEnabled && (
             <button
               onClick={async () => {
                 await unlockAudioContext();
                 setAudioUnlocked(true);
-                playAirportChime();
+                const firstServing = displayData?.serving?.[0];
+                announceNowServing({
+                  queueNo: firstServing?.queue_no || displayData?.next?.[0] || '042',
+                  counter: firstServing?.counter || 'Window 1',
+                  personnel: firstServing?.assigned_personnel || 'Officer on Duty',
+                  lang: langRef.current,
+                });
               }}
               className="btn btn-outline btn-sm"
               style={{
@@ -304,9 +345,9 @@ export default function DisplayBoard() {
                 padding: '0.25rem 0.6rem',
                 fontSize: '0.75rem',
               }}
-              title="Test airport chime on speakers"
+              title="Test airport chime and voice announcement on speakers"
             >
-              ▶ Test Chime
+              ▶ Test Chime & Voice
             </button>
           )}
           <button
@@ -389,6 +430,29 @@ export default function DisplayBoard() {
                   }}>
                     {item.queue_no}
                   </div>
+
+                  {item.assigned_personnel ? (
+                    <div style={{
+                      marginTop: '0.4rem',
+                      marginBottom: '0.65rem',
+                      padding: '0.5rem 1.4rem',
+                      backgroundColor: 'rgba(217, 119, 6, 0.22)',
+                      border: '2px solid rgba(255, 198, 3, 0.75)',
+                      borderRadius: '9999px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+                    }}>
+                      <span style={{ fontSize: '1.25rem' }}>👤</span>
+                      <span style={{ fontSize: '1.15rem', color: '#fef08a', fontWeight: 600 }}>
+                        {t.please_look_for || (lang === 'fil' ? 'Mangyaring hanapin si' : 'Please look for')}:{' '}
+                        <strong style={{ color: '#ffffff', fontWeight: 800, fontSize: '1.25rem', textDecoration: 'underline decoration-amber-400' }}>
+                          {item.assigned_personnel}
+                        </strong>
+                      </span>
+                    </div>
+                  ) : null}
 
                   {item.service_name && (
                     <div style={{

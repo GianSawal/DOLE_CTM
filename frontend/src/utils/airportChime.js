@@ -1,8 +1,12 @@
 /**
- * Airport Announcement Chime Synthesizer & Cross-Tab Chime Bus (Web Audio API)
+ * Airport Announcement Chime Synthesizer & Voice Announcer (Web Audio API & Web Speech API)
  *
- * Implements an acoustic simulation of physical metal chime bars (tubular bells)
- * commonly used in international airport Public Address (PA) and gate announcement systems.
+ * Implements:
+ * 1. Acoustic simulation of physical metal chime bars (tubular bells)
+ *    commonly used in international airport Public Address (PA) and gate announcement systems.
+ * 2. Automatic voice announcements via Web Speech API:
+ *    "Now serving, queue number [queue_no] at [counter]. Please look for [personnel]."
+ * 3. Cross-tab real-time announcement bus via BroadcastChannel.
  */
 
 let sharedAudioCtx = null;
@@ -25,6 +29,10 @@ export async function unlockAudioContext() {
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') {
       await ctx.resume();
+    }
+    // Also warm up SpeechSynthesis voices
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
     }
     return ctx?.state === 'running';
   } catch {
@@ -169,4 +177,92 @@ export async function playAirportChime(presetKey = 'classic4') {
   } catch (err) {
     console.warn('Airport chime audio playback notice:', err);
   }
+}
+
+/**
+ * Speaks the queue number and personnel announcement via Web Speech API.
+ */
+export function speakQueueAnnouncement({ queueNo, counter, personnel, lang = 'en' }) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+  try {
+    window.speechSynthesis.cancel(); // Cancel any overlapping speech
+
+    // Format queue digits for articulate pronunciation (e.g., "0 4 2" or "Priority P 0 0 1")
+    let rawQueue = String(queueNo || '').trim();
+    let spokenQueue = rawQueue;
+    if (rawQueue.toUpperCase().startsWith('P-')) {
+      const numPart = rawQueue.substring(2).split('').join(' ');
+      spokenQueue = `Priority P ${numPart}`;
+    } else {
+      spokenQueue = rawQueue.split('').join(' ');
+    }
+
+    const spokenCounter = counter || 'the designated window';
+    const cleanPersonnel = (personnel || '').trim();
+
+    let text = '';
+    if (lang === 'fil') {
+      if (cleanPersonnel) {
+        text = `Kasalukuyang pinaglilingkuran, numero ${spokenQueue}, sa ${spokenCounter}. Mangyaring hanapin si ${cleanPersonnel}.`;
+      } else {
+        text = `Kasalukuyang pinaglilingkuran, numero ${spokenQueue}, sa ${spokenCounter}.`;
+      }
+    } else {
+      if (cleanPersonnel) {
+        text = `Now serving, queue number ${spokenQueue}, at ${spokenCounter}. Please look for ${cleanPersonnel}.`;
+      } else {
+        text = `Now serving, queue number ${spokenQueue}, at ${spokenCounter}.`;
+      }
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.88; // Deliberate, clear PA announcement pace
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.lang = lang === 'fil' ? 'fil-PH' : 'en-US';
+
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      if (lang === 'fil') {
+        const filVoice = voices.find(v => v.lang.startsWith('fil') || v.lang.startsWith('tl'));
+        if (filVoice) utterance.voice = filVoice;
+      }
+      if (!utterance.voice) {
+        const preferredVoice =
+          voices.find(v => v.lang === 'en-PH') ||
+          voices.find(v => (v.lang === 'en-US' || v.lang.startsWith('en')) && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha') || v.name.includes('Zira'))) ||
+          voices.find(v => v.lang.startsWith('en')) ||
+          voices[0];
+        if (preferredVoice) utterance.voice = preferredVoice;
+      }
+    }
+
+    window.speechSynthesis.speak(utterance);
+  } catch (err) {
+    console.debug('Speech synthesis announcement notice:', err);
+  }
+}
+
+/**
+ * Complete airport public announcement:
+ * 1. Plays the 4-tone airport chime.
+ * 2. Waits for chime melody to conclude (~1.85s).
+ * 3. Speaks the announcement clearly through Text-to-Speech.
+ */
+let pendingSpeechTimer = null;
+
+export async function announceNowServing({ queueNo, counter, personnel, lang = 'en' }) {
+  if (pendingSpeechTimer) {
+    clearTimeout(pendingSpeechTimer);
+    pendingSpeechTimer = null;
+  }
+
+  // 1. Play the airport chime
+  await playAirportChime();
+
+  // 2. Trigger voice announcement after the chime plays
+  pendingSpeechTimer = setTimeout(() => {
+    speakQueueAnnouncement({ queueNo, counter, personnel, lang });
+  }, 1850);
 }
